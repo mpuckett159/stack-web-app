@@ -6,34 +6,34 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
-	"os"
 	"net/http"
+
+	"stack-web-app/frontend/wshandler"
+	"stack-web-app/frontend/db"
+
+	"github.com/gorilla/mux"
 )
-
-var addr = flag.String("addr", ":" + os.Getenv("APP_PORT"), "http service address")
-
-func serveHome(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.URL)
-	if r.URL.Path != "/" {
-		http.Error(w, "Not found", http.StatusNotFound)
-		return
-	}
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	http.ServeFile(w, r, "home.html")
-}
 
 func main() {
 	flag.Parse()
-	http.HandleFunc("/", serveHome)
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		serveWs(w, r)
-	})
-	err := http.ListenAndServe(*addr, nil)
+	db.Start()
+	router := mux.NewRouter()
+	router.HandleFunc("/", Ping).Methods("GET")
+	router.HandleFunc("/ws", wshandler.GetWS).Methods("GET")
+	router.HandleFunc("/ws", wshandler.PostWS).Methods("POST")
+	err := http.ListenAndServe(":8080", router)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
+	} else {
+		fmt.Println("Server successfully started")
+	}
+}
+
+func Ping(w http.ResponseWriter, r *http.Request) {
+	_, err := w.Write([]byte("🏓 P O N G 🏓"))
+	if err != nil {
+		return
 	}
 }

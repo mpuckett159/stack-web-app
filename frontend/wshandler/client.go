@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package wshandler
 
 import (
 	"bytes"
 	"log"
 	"net/http"
 	"time"
+	"encoding/json"
 
-	"stack-web-app/db"
+	"stack-web-app/frontend/db"
 
 	"github.com/gorilla/websocket"
 )
@@ -87,8 +88,19 @@ func (c *Client) readPump() {
 		}
 
 		// Get current stack back and push to the broadcast message queue
-		stackUsers := db.ShowCurrentStack()
-		message := bytes.TrimSpace(bytes.Replace(stackUsers, newline, space, -1))
+		stackUsers, err := db.ShowCurrentStack(messageJson.TableId)
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("error: %v", err)
+			}
+		}
+		messageUsers, err := json.Marshal(stackUsers)
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("error: %v", err)
+			}
+		}
+		message := bytes.TrimSpace(bytes.Replace(messageUsers, newline, space, -1))
 		c.hub.broadcast <- message
 	}
 }
@@ -139,23 +151,36 @@ func (c *Client) writePump() {
 	}
 }
 
-// serveWs handles websocket requests from the peer.
-func serveWs(w http.ResponseWriter, r *http.Request) {
+// GetWS handles websocket requests from the peer.
+func GetWS(w http.ResponseWriter, r *http.Request) {
 	hubId := r.URL.Query().Get("meeting_id")
 	var hub *Hub
 
-	if (r.Method == "GET" && hubId != "") {
-		// Look for existing meeting hub from ID provided in URL
-		if v, ok := HubPool[hubId]; ok {
-			hub = v
-		} else {
-			// Return "meeting not found error"
-		}
-	} else if (r.Method == "POST") {
-		// Create new hub for meeting and return to be used for client creation
-		hub = newHub()
-		go hub.run()
+	// Look for existing meeting hub from ID provided in URL
+	if v, ok := HubPool[hubId]; ok {
+		hub = v
+	} else {
+		// Return "meeting not found error"
 	}
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
+	client.hub.register <- client
+
+	// Allow collection of memory referenced by the caller by doing all work in
+	// new goroutines.
+	go client.writePump()
+	go client.readPump()
+}
+
+// PostWS handles websocket requests from the peer.
+func PostWS(w http.ResponseWriter, r *http.Request) {
+	// Create new hub for meeting and return to be used for client creation
+	hub := newHub()
+	go hub.run()
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
