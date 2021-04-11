@@ -3,10 +3,9 @@ new Vue({
 
     data: {
         ws: null, // Our websocket
-        newMsg: '', // Holds new messages to be sent to the server
-        chatContent: '', // A running list of chat messages displayed on the screen
-        email: null, // Email address used for grabbing an avatar
-        username: null, // Our username
+        tableId: null, // meeting ID
+        stackContent: '', // A running list of chat messages displayed on the screen
+        name: null, // Our username
         joined: false // True if email and username have been filled in
     },
 
@@ -16,12 +15,10 @@ new Vue({
         this.ws.addEventListener('message', function(e) {
             var msg = JSON.parse(e.data);
             self.chatContent += '<div class="chip">'
-                    + '<img src="' + self.gravatarURL(msg.email) + '">' // Avatar
-                    + msg.username
-                + '</div>'
-                + emojione.toImage(msg.message) + '<br/>'; // Parse emojis
+                    + emojione.toImage(msg.name)
+                + '</div><br/>';
 
-            var element = document.getElementById('chat-messages');
+            var element = document.getElementById('current-stack');
             element.scrollTop = element.scrollHeight; // Auto scroll to the bottom
         });
     },
@@ -31,31 +28,21 @@ new Vue({
             if (this.newMsg != '') {
                 this.ws.send(
                     JSON.stringify({
-                        email: this.email,
-                        username: this.username,
-                        message: $('<p>').html(this.newMsg).text() // Strip out html
+                        tableId: this.id,
+                        action: this.action,
+                        name: this.name
                     }
                 ));
-                this.newMsg = ''; // Reset newMsg
             }
         },
 
         join: function () {
-            if (!this.email) {
-                Materialize.toast('You must enter an email', 2000);
+            if (!this.name) {
+                Materialize.toast('You must choose a name', 2000);
                 return
             }
-            if (!this.username) {
-                Materialize.toast('You must choose a username', 2000);
-                return
-            }
-            this.email = $('<p>').html(this.email).text();
-            this.username = $('<p>').html(this.username).text();
+            this.name = $('<p>').html(this.name).text();
             this.joined = true;
         },
-
-        gravatarURL: function(email) {
-            return 'http://www.gravatar.com/avatar/' + CryptoJS.MD5(email);
-        }
     }
 });

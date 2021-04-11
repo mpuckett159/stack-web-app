@@ -31,14 +31,12 @@ func CreateTable(newTableId string) (err error) {
 	defer sqliteDatabase.Close()
 
 	// Prepare table creation SQL
-	createMeetingTableSQL := `CREATE TABLE ? (
-		"idSpeaker" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
-		"name" TEXT
-	  );`
+	createMeetingTableSQL := "CREATE TABLE IF NOT EXISTS '" + newTableId + "' (id INTEGER NOT NULL PRIMARY KEY,name TEXT)"
 	log.Println("Creating new meeting table with id " + newTableId + " ...")
+	log.Println("Executing " + createMeetingTableSQL)
 	statement, err := sqliteDatabase.Prepare(createMeetingTableSQL)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal("Error preparing statement " + err.Error())
 		return err
 	}
 	defer statement.Close()

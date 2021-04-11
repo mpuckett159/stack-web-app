@@ -5,6 +5,8 @@
 package wshandler
 
 import (
+	"fmt"
+
 	"stack-web-app/frontend/db"
 
 	"github.com/google/uuid"
@@ -30,7 +32,7 @@ type Hub struct {
 }
 
 // Declare global slice of hub ID to hub pointer map to track existing meeting hubs
-var HubPool map[string]*Hub
+var HubPool = map[string]*Hub{}
 
 func newHub() *Hub {
 	// Create new UUID to declare new hub with
@@ -48,6 +50,7 @@ func newHub() *Hub {
 
 	// Add hub ID to hub pointer map for quick meeting hub lookup
 	HubPool[hubId] = &hub
+	fmt.Println(HubPool)
 
 	// Return pointer to the hub object
 	return &hub

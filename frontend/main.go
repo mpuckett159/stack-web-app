@@ -32,8 +32,6 @@ func main() {
 }
 
 func Ping(w http.ResponseWriter, r *http.Request) {
-	_, err := w.Write([]byte("🏓 P O N G 🏓"))
-	if err != nil {
-		return
-	}
+	fs := http.FileServer(http.Dir("../public"))
+    http.Handle("/", fs)
 }
