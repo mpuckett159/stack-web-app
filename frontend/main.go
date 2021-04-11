@@ -19,8 +19,9 @@ import (
 func main() {
 	flag.Parse()
 	db.Start()
+	fs := http.FileServer(http.Dir("../public"))
 	router := mux.NewRouter()
-	router.HandleFunc("/", Ping).Methods("GET")
+    router.Handle("/", fs)
 	router.HandleFunc("/ws", wshandler.GetWS).Methods("GET")
 	router.HandleFunc("/ws", wshandler.PostWS).Methods("POST")
 	err := http.ListenAndServe(":8080", router)
