@@ -6,7 +6,6 @@ import (
 	"os"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/google/uuid"
 )
 
 type User struct {
@@ -26,13 +25,12 @@ func Start() {
 	log.Println("sqlite-database.db created")
 }
 
-func CreateTable() (newTableId string, err error) {
+func CreateTable(newTableId string) (err error) {
 	// Get sqlite db connection
 	sqliteDatabase, _ := sql.Open("sqlite3", "./sqlite-database.db")
 	defer sqliteDatabase.Close()
 
 	// Prepare table creation SQL
-	newTableId = uuid.New().String()
 	createMeetingTableSQL := `CREATE TABLE ? (
 		"idSpeaker" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
 		"name" TEXT
@@ -41,7 +39,7 @@ func CreateTable() (newTableId string, err error) {
 	statement, err := sqliteDatabase.Prepare(createMeetingTableSQL)
 	if err != nil {
 		log.Fatal(err.Error())
-		return "", err
+		return err
 	}
 	defer statement.Close()
 
@@ -50,7 +48,7 @@ func CreateTable() (newTableId string, err error) {
 	log.Println("Meeting table created successfully!")
 
 	// Return the new table ID
-	return newTableId, nil
+	return nil
 }
 
 func GetOnStack(tableId string, name string) (err error) {

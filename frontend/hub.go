@@ -4,6 +4,12 @@
 
 package main
 
+import (
+	"stack-web-app/frontend/db"
+
+	"github.com/google/uuid"
+)
+
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
 type Hub struct {
@@ -18,15 +24,33 @@ type Hub struct {
 
 	// Unregister requests from clients.
 	unregister chan *Client
+
+	// Hub ID so users can join asynchronously
+	hubId string
 }
 
+// Declare global slice of hub ID to hub pointer map to track existing meeting hubs
+var HubPool map[string]*Hub
+
 func newHub() *Hub {
-	return &Hub{
+	// Create new UUID to declare new hub with
+	hubId := uuid.New().String()
+
+	// Create new DB table to store users in
+	db.CreateTable(hubId)
+	hub := Hub{
 		broadcast:  make(chan []byte),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
+		hubId:		hubId,
 	}
+
+	// Add hub ID to hub pointer map for quick meeting hub lookup
+	HubPool[hubId] = &hub
+
+	// Return pointer to the hub object
+	return &hub
 }
 
 func (h *Hub) run() {

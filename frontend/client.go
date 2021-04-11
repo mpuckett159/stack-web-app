@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"time"
-	"encoding/json"
 
 	"stack-web-app/db"
 
@@ -65,7 +64,14 @@ func (c *Client) readPump() {
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
-		_, message, err := c.conn.ReadMessage()
+		// Read next JSON message for user updates
+		type userMessage struct {
+			TableId	string
+			Action	string
+			Name	string
+		}
+		var messageJson userMessage
+		err := c.conn.ReadJSON(&messageJson)
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
@@ -74,19 +80,6 @@ func (c *Client) readPump() {
 		}
 
 		// Put user on/off stack based on action in request
-		type userMessage struct {
-			Name	string
-			Action	string
-			TableId	string
-		}
-		var messageJson userMessage
-		err = json.Unmarshal(message, &messageJson)
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
-			}
-			break
-		}
 		if(messageJson.Action == "on") {
 			db.GetOnStack(messageJson.TableId, messageJson.Name)
 		} else if (messageJson.Action == "off") {
@@ -95,7 +88,7 @@ func (c *Client) readPump() {
 
 		// Get current stack back and push to the broadcast message queue
 		stackUsers := db.ShowCurrentStack()
-		message = bytes.TrimSpace(bytes.Replace(stackUsers, newline, space, -1))
+		message := bytes.TrimSpace(bytes.Replace(stackUsers, newline, space, -1))
 		c.hub.broadcast <- message
 	}
 }
@@ -147,7 +140,22 @@ func (c *Client) writePump() {
 }
 
 // serveWs handles websocket requests from the peer.
-func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
+func serveWs(w http.ResponseWriter, r *http.Request) {
+	hubId := r.URL.Query().Get("meeting_id")
+	var hub *Hub
+
+	if (r.Method == "GET" && hubId != "") {
+		// Look for existing meeting hub from ID provided in URL
+		if v, ok := HubPool[hubId]; ok {
+			hub = v
+		} else {
+			// Return "meeting not found error"
+		}
+	} else if (r.Method == "POST") {
+		// Create new hub for meeting and return to be used for client creation
+		hub = newHub()
+		go hub.run()
+	}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)

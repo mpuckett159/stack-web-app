@@ -7,10 +7,11 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
 	"net/http"
 )
 
-var addr = flag.String("addr", ":8080", "http service address")
+var addr = flag.String("addr", ":" + os.Getenv("APP_PORT"), "http service address")
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.URL)
@@ -27,11 +28,9 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
-	hub := newHub()
-	go hub.run()
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		serveWs(hub, w, r)
+		serveWs(w, r)
 	})
 	err := http.ListenAndServe(*addr, nil)
 	if err != nil {
