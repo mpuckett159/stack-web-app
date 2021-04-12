@@ -11,10 +11,12 @@ new Vue({
 
     created: function() {
         var self = this;
+        this.joined = false;
+        this.tableId = this.$route.query.meeting_id;
         this.ws = new WebSocket('ws://' + window.location.host + '/ws');
         this.ws.addEventListener('message', function(e) {
             var msg = JSON.parse(e.data);
-            self.chatContent += '<div class="chip">'
+            self.stackContent += '<div class="chip">'
                     + emojione.toImage(msg.name)
                 + '</div><br/>';
 
@@ -28,7 +30,7 @@ new Vue({
             if (this.newMsg != '') {
                 this.ws.send(
                     JSON.stringify({
-                        tableId: this.id,
+                        tableId: this.tableId,
                         action: this.action,
                         name: this.name
                     }

@@ -6,7 +6,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -19,20 +18,14 @@ import (
 func main() {
 	flag.Parse()
 	db.Start()
-	fs := http.FileServer(http.Dir("../public"))
 	router := mux.NewRouter()
-    router.Handle("/", fs)
+	s := http.StripPrefix("/public/", http.FileServer(http.Dir("../public/")))
+    router.PathPrefix("/public/").Handler(s)
+	router.Handle("/", http.FileServer(http.Dir("../public")))
 	router.HandleFunc("/ws", wshandler.GetWS).Methods("GET")
 	router.HandleFunc("/ws", wshandler.PostWS).Methods("POST")
 	err := http.ListenAndServe(":8080", router)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
-	} else {
-		fmt.Println("Server successfully started")
 	}
-}
-
-func Ping(w http.ResponseWriter, r *http.Request) {
-	fs := http.FileServer(http.Dir("../public"))
-    http.Handle("/", fs)
 }
