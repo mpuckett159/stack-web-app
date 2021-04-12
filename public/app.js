@@ -12,7 +12,10 @@ new Vue({
     created: function() {
         var self = this;
         this.joined = false;
-        this.tableId = this.$route.query.meeting_id;
+        let urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('meeting_id')) {
+            this.tableId = urlParams.has('meeting_id');
+        };
         this.ws = new WebSocket('ws://' + window.location.host + '/ws');
         this.ws.addEventListener('message', function(e) {
             var msg = JSON.parse(e.data);
