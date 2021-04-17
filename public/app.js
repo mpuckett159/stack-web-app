@@ -15,17 +15,18 @@ new Vue({
         let urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('meeting_id')) {
             this.tableId = urlParams.has('meeting_id');
-        };
-        this.ws = new WebSocket('ws://' + window.location.host + '/ws');
-        this.ws.addEventListener('message', function(e) {
-            var msg = JSON.parse(e.data);
-            self.stackContent += '<div class="chip">'
-                    + emojione.toImage(msg.name)
-                + '</div><br/>';
 
-            var element = document.getElementById('current-stack');
-            element.scrollTop = element.scrollHeight; // Auto scroll to the bottom
-        });
+            this.ws = new WebSocket('ws://' + window.location.host + '/ws');
+            this.ws.addEventListener('message', function(e) {
+                var msg = JSON.parse(e.data);
+                self.stackContent += '<div class="chip">'
+                        + emojione.toImage(msg.name)
+                    + '</div><br/>';
+
+                var element = document.getElementById('current-stack');
+                element.scrollTop = element.scrollHeight; // Auto scroll to the bottom
+            });
+        };
     },
 
     methods: {
@@ -43,11 +44,29 @@ new Vue({
 
         join: function () {
             if (!this.name) {
-                Materialize.toast('You must choose a name', 2000);
+                Materialize.toast('You must set a meeting ID', 2000);
                 return
             }
             this.name = $('<p>').html(this.name).text();
             this.joined = true;
         },
+
+        create: function () {
+            this.ws = new WebSocket('ws://' + window.location.host + '/ws');
+            this.ws.addEventListener('message', function(e) {
+                var msg = JSON.parse(e.data);
+                self.stackContent += '<div class="chip">'
+                        + emojione.toImage(msg.name)
+                    + '</div><br/>';
+
+                var element = document.getElementById('current-stack');
+                element.scrollTop = element.scrollHeight; // Auto scroll to the bottom
+            });
+            const requestOptions = {
+                method: "POST",
+                headers: { "Content-Type": "application/json" }
+              };
+              fetch("http://" + window.location.host + "/ws", requestOptions);
+        }
     }
 });
