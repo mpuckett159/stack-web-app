@@ -51,6 +51,10 @@ type Client struct {
 	send chan []byte
 }
 
+type WsReturn struct {
+	MeetingId	string	`json:"meetingId"`
+}
+
 // readPump pumps messages from the websocket connection to the hub.
 //
 // The application runs readPump in a per-connection goroutine. The application
@@ -193,4 +197,10 @@ func PostWS(w http.ResponseWriter, r *http.Request) {
 	// new goroutines.
 	go client.writePump()
 	go client.readPump()
+
+	// Return new meeting ID to client
+	v := WsReturn{hub.hubId}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+    json.NewEncoder(w).Encode(v)
 }
