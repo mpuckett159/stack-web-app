@@ -6,6 +6,7 @@ package wshandler
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -164,7 +165,7 @@ func GetWS(w http.ResponseWriter, r *http.Request) {
 	if v, ok := HubPool[hubId]; ok {
 		hub = v
 	} else {
-		// Return "meeting not found error"
+		fmt.Println("Meeting not found.")
 	}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {

@@ -14,9 +14,9 @@ new Vue({
         this.joined = false;
         let urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('meeting_id')) {
-            this.tableId = urlParams.has('meeting_id');
+            this.tableId = urlParams.get('meeting_id');
 
-            this.ws = new WebSocket('ws://' + window.location.host + '/ws');
+            this.ws = new WebSocket('ws://' + window.location.host + '/ws?meeting_id=' + this.tableId);
             this.ws.addEventListener('message', function(e) {
                 var msg = JSON.parse(e.data);
                 self.stackContent += '<div class="chip">'
@@ -52,7 +52,14 @@ new Vue({
         },
 
         create: function () {
-            this.ws = new WebSocket('ws://' + window.location.host + '/ws');
+            const requestOptions = {
+                method: "POST",
+                headers: { "Content-Type": "application/json" }
+            };
+            fetch("http://" + window.location.host + "/ws", requestOptions)
+              .then(response => response.json())
+              .then(data => (this.tableId = data.meetingId));
+            this.ws = new WebSocket('ws://' + window.location.host + '/ws?meeting_id=' + this.tableId);
             this.ws.addEventListener('message', function(e) {
                 var msg = JSON.parse(e.data);
                 self.stackContent += '<div class="chip">'
@@ -62,11 +69,6 @@ new Vue({
                 var element = document.getElementById('current-stack');
                 element.scrollTop = element.scrollHeight; // Auto scroll to the bottom
             });
-            const requestOptions = {
-                method: "POST",
-                headers: { "Content-Type": "application/json" }
-              };
-              fetch("http://" + window.location.host + "/ws", requestOptions);
         }
     }
 });
