@@ -42,7 +42,12 @@ func CreateTable(newTableId string) (err error) {
 	defer statement.Close()
 
 	// Execute new table creation
-	statement.Exec(newTableId)
+	r, err := statement.Exec()
+	if err != nil {
+		log.Fatal("Error executing statement " + err.Error())
+		return err
+	}
+	log.Println(r)
 	log.Println("Meeting table created successfully!")
 
 	// Return the new table ID
