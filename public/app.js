@@ -51,16 +51,15 @@ new Vue({
             this.joined = true;
         },
 
-        create: function () {
+        create: async function () {
             var self = this;
             const requestOptions = {
                 method: "POST",
                 headers: { "Accept": "application/json" }
             };
-            fetch("http://" + window.location.host + "/ws", requestOptions)
+            await fetch("http://" + window.location.host + "/ws", requestOptions)
               .then(response => response.json())
               .then(data => self.tableId = data.meetingId);
-            console.log(this);
             this.ws = new WebSocket('ws://' + window.location.host + '/ws?meeting_id=' + this.tableId);
             this.ws.addEventListener('message', function(e) {
                 var msg = JSON.parse(e.data);
@@ -71,6 +70,7 @@ new Vue({
                 var element = document.getElementById('current-stack');
                 element.scrollTop = element.scrollHeight; // Auto scroll to the bottom
             });
+            this.joined = true;
         }
     }
 });
