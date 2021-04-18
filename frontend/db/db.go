@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 
@@ -59,7 +60,7 @@ func GetOnStack(tableId string, name string) (err error) {
 	defer sqliteDatabase.Close()
 
 	// Prepare table update SQL
-	addUserToStackTableSQL := "INSERT INTO ? (name) VALUES (?);"
+	addUserToStackTableSQL := "INSERT INTO '" + tableId + "' (name) VALUES (?);"
 	log.Println("Adding " + name + " to stack " + tableId)
 	statement, err := sqliteDatabase.Prepare(addUserToStackTableSQL)
 	if err != nil {
@@ -69,7 +70,7 @@ func GetOnStack(tableId string, name string) (err error) {
 	defer statement.Close()
 
 	// Execute new table update
-	statement.Exec(tableId, name)
+	statement.Exec(name)
 
 	// Return nothing because there are no failures
 	return nil
@@ -81,7 +82,7 @@ func GetOffStack(tableId string, name string) (err error) {
 	defer sqliteDatabase.Close()
 
 	// Prepare table update SQL
-	removeUserFromStackTableSQL := "DELETE FROM ? WHERE name=?;"
+	removeUserFromStackTableSQL := "DELETE FROM '" + tableId + "' WHERE name=?;"
 	log.Println("Removing " + name + " to stack " + tableId)
 	statement, err := sqliteDatabase.Prepare(removeUserFromStackTableSQL)
 	if err != nil {
@@ -91,7 +92,7 @@ func GetOffStack(tableId string, name string) (err error) {
 	defer statement.Close()
 
 	// Execute new table update
-	statement.Exec(tableId, name)
+	statement.Exec(name)
 
 	// Return nothing because there are no failures
 	return nil
@@ -103,8 +104,8 @@ func ShowCurrentStack(tableId string) (stackUsers []User, err error) {
 	defer sqliteDatabase.Close()
 
 	// Prepare SELECT query
-	showCurrentStackTableSQL := "SELECT idSpeaker, name FROM ?;"
-	rows, err := sqliteDatabase.Query(showCurrentStackTableSQL, tableId)
+	showCurrentStackTableSQL := "SELECT id, name FROM '" + tableId + "';"
+	rows, err := sqliteDatabase.Query(showCurrentStackTableSQL)
 	if err != nil {
 		log.Fatal(err.Error())
 		return nil, err
@@ -114,7 +115,10 @@ func ShowCurrentStack(tableId string) (stackUsers []User, err error) {
 	// Parse database rows to User object slice 
 	for rows.Next() {
 		var stackUser User
-		rows.Scan(&stackUser)
+		err := rows.Scan(&stackUser.SpeakerPostition, &stackUser.Name)
+		if err != nil {
+			fmt.Println("Error scanning DB results: " + err.Error())
+		}
 		stackUsers = append(stackUsers, stackUser)
 	}
 
