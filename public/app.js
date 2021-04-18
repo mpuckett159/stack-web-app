@@ -102,7 +102,6 @@ new Vue({
                 var data = $.parseJSON(e.data);
                 if (data) {
                     for(var speaker in data) {
-                        console.log(data[speaker]);
                         self.stackContent += '<div class="chip">'
                             + data[speaker].name
                         + '</div><br/>';
