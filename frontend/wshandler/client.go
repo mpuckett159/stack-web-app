@@ -166,6 +166,7 @@ func GetWS(w http.ResponseWriter, r *http.Request) {
 		hub = v
 	} else {
 		fmt.Println("Meeting not found.")
+		return
 	}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -186,22 +187,15 @@ func PostWS(w http.ResponseWriter, r *http.Request) {
 	// Create new hub for meeting and return to be used for client creation
 	hub := newHub()
 	go hub.run()
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
-	client.hub.register <- client
-
-	// Allow collection of memory referenced by the caller by doing all work in
-	// new goroutines.
-	go client.writePump()
-	go client.readPump()
 
 	// Return new meeting ID to client
-	v := WsReturn{hub.hubId}
+	returnBlob := WsReturn{hub.hubId}
+	rJson, err := json.Marshal(returnBlob)
+	if err != nil {
+		fmt.Println("Error marshalling JSON response.")
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-    json.NewEncoder(w).Encode(v)
+	w.Write(rJson)
 }

@@ -5,8 +5,6 @@
 package wshandler
 
 import (
-	"fmt"
-
 	"stack-web-app/frontend/db"
 
 	"github.com/google/uuid"
@@ -50,7 +48,6 @@ func newHub() *Hub {
 
 	// Add hub ID to hub pointer map for quick meeting hub lookup
 	HubPool[hubId] = &hub
-	fmt.Println(HubPool)
 
 	// Return pointer to the hub object
 	return &hub
