@@ -22,10 +22,15 @@ func main() {
 	s := http.StripPrefix("/public/", http.FileServer(http.Dir("../public/")))
     router.PathPrefix("/public/").Handler(s)
 	router.Handle("/", http.FileServer(http.Dir("../public")))
+	router.HandleFunc("/favicon.ico", faviconHandler)
 	router.HandleFunc("/ws", wshandler.GetWS).Methods("GET")
 	router.HandleFunc("/ws", wshandler.PostWS).Methods("POST")
 	err := http.ListenAndServe(":8080", router)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
+}
+
+func faviconHandler(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "../public/favicon.ico")
 }
