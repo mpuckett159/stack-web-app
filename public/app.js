@@ -125,4 +125,4 @@ function copyMeetingUrl() {
   
     /* Alert the copied text */
     Materialize.toast('Meeting URL copied.', 2000);
-  }
+}
