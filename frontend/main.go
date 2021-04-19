@@ -22,8 +22,8 @@ func main() {
 	flag.Parse()
 	db.Start()
 	router := mux.NewRouter()
-	router.HandleFunc("/ws", wshandler.GetWS).Methods("GET")
-	router.HandleFunc("/ws", wshandler.PostWS).Methods("POST")
+	router.HandleFunc("/", wshandler.GetWS).Methods("GET")
+	router.HandleFunc("/", wshandler.PostWS).Methods("POST")
 
 	// Set up request logging
 	loggedRouter := handlers.LoggingHandler(os.Stdout, router)
