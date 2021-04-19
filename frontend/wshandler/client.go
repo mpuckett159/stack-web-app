@@ -156,7 +156,7 @@ func (c *Client) writePump() {
 	}
 }
 
-// GetWS handles websocket requests from the peer.
+// GetWS sets up the new WebSocket and 
 func GetWS(w http.ResponseWriter, r *http.Request) {
 	hubId := r.URL.Query().Get("meeting_id")
 	var hub *Hub
@@ -182,7 +182,7 @@ func GetWS(w http.ResponseWriter, r *http.Request) {
 	go client.readPump()
 }
 
-// PostWS handles websocket requests from the peer.
+// PostWS creates new meeting table in SQLite DB and returns the ID to the client
 func PostWS(w http.ResponseWriter, r *http.Request) {
 	// Create new hub for meeting and return to be used for client creation
 	hub := newHub()

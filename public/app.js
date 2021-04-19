@@ -68,9 +68,27 @@ new Vue({
                 return
             }
 
+            // Store self for later reference
+            var self = this;
+
             // Join an on-going meeting by ID and update session values
             this.ws = new WebSocket('ws://' + window.location.host + '/ws?meeting_id=' + this.tableId);
             this.joined = true;
+
+            // Set up event listeners to handle incoming/outgoing messages and open/close actions
+            this.ws.addEventListener('message', function(e) {
+                self.stackContent = ""
+                var data = $.parseJSON(e.data);
+                if (data) {
+                    for(var speaker in data) {
+                        self.stackContent += '<div class="chip">'
+                            + data[speaker].name
+                        + '</div><br/>';
+                    };
+                }
+                var element = document.getElementById('current-stack');
+                element.scrollTop = element.scrollHeight; // Auto scroll to the bottom
+            });
         },
 
         create: async function (submitEvent) {
