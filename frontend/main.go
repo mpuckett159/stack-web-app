@@ -6,8 +6,10 @@ package main
 
 import (
 	"flag"
-	"log"
+	"fmt"
 	"net/http"
+	"os"
+	"strings"
 
 	"stack-web-app/frontend/wshandler"
 	"stack-web-app/frontend/db"
@@ -16,6 +18,7 @@ import (
 )
 
 func main() {
+	// Set up gorilla mux router handling
 	flag.Parse()
 	db.Start()
 	router := mux.NewRouter()
@@ -25,9 +28,31 @@ func main() {
 	router.HandleFunc("/favicon.ico", faviconHandler)
 	router.HandleFunc("/ws", wshandler.GetWS).Methods("GET")
 	router.HandleFunc("/ws", wshandler.PostWS).Methods("POST")
-	err := http.ListenAndServe(":8080", router)
+
+	// Setting some required pieces for DigitalOcean app platform support
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "80"
+	}
+
+	for _, encodedRoute := range strings.Split(os.Getenv("ROUTES"), ",") {
+		if encodedRoute == "" {
+			continue
+		}
+		pathAndBody := strings.SplitN(encodedRoute, "=", 2)
+		path, body := pathAndBody[0], pathAndBody[1]
+		http.HandleFunc("/"+path, func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, body)
+		})
+	}
+
+	bindAddr := fmt.Sprintf(":%s", port)
+	fmt.Println()
+	fmt.Printf("==> Server listening at %s 🚀\n", bindAddr)
+
+	err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil)
 	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
+		panic(err)
 	}
 }
 
