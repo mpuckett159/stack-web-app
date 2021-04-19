@@ -38,7 +38,7 @@ func main() {
 	fmt.Println()
 	fmt.Printf("==> Server listening at %s 🚀\n", bindAddr)
 
-	err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil)
+	err := http.ListenAndServe(fmt.Sprintf(":%s", port), router)
 	if err != nil {
 		panic(err)
 	}
