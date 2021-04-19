@@ -8,9 +8,16 @@ main {
     flex: 1 0 auto;
 }
 
-#chat-messages {
+#card-content {
     min-height: 10vh;
     height: 60vh;
     width: 100%;
     overflow-y: scroll;
+}
+
+.scroll-box {
+    overflow-y: scroll;
+    width: 200px;
+    height: 200px;
+    padding: 1rem
 }

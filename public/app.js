@@ -6,7 +6,8 @@ new Vue({
         tableId: null, // meeting ID
         stackContent: '', // Current speaker queue stack
         name: null,
-        joined: false
+        joined: false,
+        meetingUrl: null
     },
 
     created: function() {
@@ -14,17 +15,6 @@ new Vue({
         let urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('meeting_id')) {
             this.tableId = urlParams.get('meeting_id');
-
-            this.ws = new WebSocket('ws://' + window.location.host + '/ws?meeting_id=' + this.tableId);
-            this.ws.addEventListener('message', function(e) {
-                var msg = JSON.parse(e.data);
-                self.stackContent += '<div class="chip">'
-                        + emojione.toImage(msg.name)
-                    + '</div><br/>';
-
-                var element = document.getElementById('current-stack');
-                element.scrollTop = element.scrollHeight; // Auto scroll to the bottom
-            });
         };
     },
 
@@ -72,23 +62,12 @@ new Vue({
             var self = this;
 
             // Join an on-going meeting by ID and update session values
+            this.meetingUrl = window.location.host + '/?meeting_id=' + this.tableId;
             this.ws = new WebSocket('ws://' + window.location.host + '/ws?meeting_id=' + this.tableId);
             this.joined = true;
 
             // Set up event listeners to handle incoming/outgoing messages and open/close actions
-            this.ws.addEventListener('message', function(e) {
-                self.stackContent = ""
-                var data = $.parseJSON(e.data);
-                if (data) {
-                    for(var speaker in data) {
-                        self.stackContent += '<div class="chip">'
-                            + data[speaker].name
-                        + '</div><br/>';
-                    };
-                }
-                var element = document.getElementById('current-stack');
-                element.scrollTop = element.scrollHeight; // Auto scroll to the bottom
-            });
+            this.ws.addEventListener('message', function(e) { messageListener(self, e) });
         },
 
         create: async function (submitEvent) {
@@ -111,23 +90,39 @@ new Vue({
               .then(data => self.tableId = data.meetingId);
 
             // Set up new WebSocket to be used with the required meeting ID and update session values
+            this.meetingUrl = window.location.host + '/?meeting_id=' + this.tableId;
             this.ws = new WebSocket('ws://' + window.location.host + '/ws?meeting_id=' + this.tableId);
             this.joined = true;
 
             // Set up event listeners to handle incoming/outgoing messages and open/close actions
-            this.ws.addEventListener('message', function(e) {
-                self.stackContent = ""
-                var data = $.parseJSON(e.data);
-                if (data) {
-                    for(var speaker in data) {
-                        self.stackContent += '<div class="chip">'
-                            + data[speaker].name
-                        + '</div><br/>';
-                    };
-                }
-                var element = document.getElementById('current-stack');
-                element.scrollTop = element.scrollHeight; // Auto scroll to the bottom
-            });
+            this.ws.addEventListener('message', function(e) { messageListener(self, e) });
         }
     }
 });
+
+function messageListener(self, event) {
+    self.stackContent = ""
+    var data = $.parseJSON(event.data);
+    if (data) {
+        for(var speaker in data) {
+            self.stackContent += '<div class="chip">'
+                + data[speaker].name
+            + '</div><br/>';
+        };
+    }
+}
+
+function copyMeetingUrl() {
+    /* Get the text field */
+    var copyText = document.getElementById("meetingUrl");
+  
+    /* Select the text field */
+    copyText.select();
+    copyText.setSelectionRange(0, 99999); /* For mobile devices */
+  
+    /* Copy the text inside the text field */
+    document.execCommand("copy");
+  
+    /* Alert the copied text */
+    Materialize.toast('Meeting URL copied.', 2000);
+  }
