@@ -13,6 +13,7 @@ import (
 	"stack-web-app/frontend/wshandler"
 	"stack-web-app/frontend/db"
 
+    "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
@@ -24,6 +25,9 @@ func main() {
 	router.HandleFunc("/ws", wshandler.GetWS).Methods("GET")
 	router.HandleFunc("/ws", wshandler.PostWS).Methods("POST")
 
+	// Set up request logging
+	loggedRouter := handlers.LoggingHandler(os.Stdout, router)
+
 	// Setting some required pieces for DigitalOcean app platform support
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -34,7 +38,7 @@ func main() {
 	fmt.Println()
 	fmt.Printf("==> Server listening at %s 🚀\n", bindAddr)
 
-	err := http.ListenAndServe(fmt.Sprintf(":%s", port), router)
+	err := http.ListenAndServe(fmt.Sprintf(":%s", port), loggedRouter)
 	if err != nil {
 		panic(err)
 	}
