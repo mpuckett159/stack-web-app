@@ -169,7 +169,7 @@ func GetWS(w http.ResponseWriter, r *http.Request) {
 	if v, ok := HubPool[hubId]; ok {
 		hub = v
 	} else {
-		fmt.Println("Meeting not found.")
+		fmt.Println("Meeting with id " + hubId + " not found.")
 		return
 	}
 	conn, err := upgrader.Upgrade(w, r, nil)

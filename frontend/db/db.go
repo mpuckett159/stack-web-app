@@ -34,11 +34,9 @@ func CreateTable(newTableId string) (err error) {
 
 	// Prepare table creation SQL
 	createMeetingTableSQL := "CREATE TABLE IF NOT EXISTS '" + newTableId + "' (speakerPosition INTEGER NOT NULL PRIMARY KEY, speakerId TEXT UNIQUE, name TEXT)"
-	log.Println("Creating new meeting table with id " + newTableId + " ...")
-	log.Println("Executing " + createMeetingTableSQL)
 	statement, err := sqliteDatabase.Prepare(createMeetingTableSQL)
 	if err != nil {
-		log.Fatal("Error preparing statement " + err.Error())
+		log.Fatal("Error preparing statement to create meeting table: " + err.Error())
 		return err
 	}
 	defer statement.Close()
@@ -46,10 +44,9 @@ func CreateTable(newTableId string) (err error) {
 	// Execute new table creation
 	_, err = statement.Exec()
 	if err != nil {
-		log.Fatal("Error executing statement " + err.Error())
+		log.Fatal("Error creating meeting table: " + err.Error())
 		return err
 	}
-	log.Println("Meeting table created successfully!")
 
 	// Return the new table ID
 	return nil
@@ -62,10 +59,9 @@ func GetOnStack(tableId string, speakerId string, name string) (err error) {
 
 	// Prepare table update SQL
 	addUserToStackTableSQL := "INSERT INTO '" + tableId + "' (speakerId, name) VALUES (?,?);"
-	log.Println("Adding " + name + " to stack " + tableId)
 	statement, err := sqliteDatabase.Prepare(addUserToStackTableSQL)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal("Error preparing statment to add user to stack: " + err.Error())
 		return err
 	}
 	defer statement.Close()
