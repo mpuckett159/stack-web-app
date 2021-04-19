@@ -85,7 +85,7 @@ new Vue({
                 method: "POST",
                 headers: { "Accept": "application/json" }
             };
-            await fetch("http://" + window.location.host + "/ws", requestOptions)
+            await fetch("https://" + window.location.host + "/ws", requestOptions)
               .then(response => response.json())
               .then(data => self.tableId = data.meetingId);
 
