@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 
 	"stack-web-app/frontend/wshandler"
 	"stack-web-app/frontend/db"
