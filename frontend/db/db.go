@@ -11,6 +11,7 @@ import (
 
 type User struct {
 	SpeakerPostition	int16	`json:"speakerPosition"`
+	SpeakerId			string	`json:"speakerId"`
 	Name				string	`json:"name"`
 }
 
@@ -32,7 +33,7 @@ func CreateTable(newTableId string) (err error) {
 	defer sqliteDatabase.Close()
 
 	// Prepare table creation SQL
-	createMeetingTableSQL := "CREATE TABLE IF NOT EXISTS '" + newTableId + "' (id INTEGER NOT NULL PRIMARY KEY,name TEXT)"
+	createMeetingTableSQL := "CREATE TABLE IF NOT EXISTS '" + newTableId + "' (speakerPosition INTEGER NOT NULL PRIMARY KEY, speakerId TEXT UNIQUE, name TEXT)"
 	log.Println("Creating new meeting table with id " + newTableId + " ...")
 	log.Println("Executing " + createMeetingTableSQL)
 	statement, err := sqliteDatabase.Prepare(createMeetingTableSQL)
@@ -54,13 +55,13 @@ func CreateTable(newTableId string) (err error) {
 	return nil
 }
 
-func GetOnStack(tableId string, name string) (err error) {
+func GetOnStack(tableId string, speakerId string, name string) (err error) {
 	// Get sqlite db connection
 	sqliteDatabase, _ := sql.Open("sqlite3", "./sqlite-database.db")
 	defer sqliteDatabase.Close()
 
 	// Prepare table update SQL
-	addUserToStackTableSQL := "INSERT INTO '" + tableId + "' (name) VALUES (?);"
+	addUserToStackTableSQL := "INSERT INTO '" + tableId + "' (speakerId, name) VALUES (?,?);"
 	log.Println("Adding " + name + " to stack " + tableId)
 	statement, err := sqliteDatabase.Prepare(addUserToStackTableSQL)
 	if err != nil {
@@ -70,20 +71,22 @@ func GetOnStack(tableId string, name string) (err error) {
 	defer statement.Close()
 
 	// Execute new table update
-	statement.Exec(name)
+	_, err = statement.Exec(speakerId, name)
+	if err != nil {
+		fmt.Println("Error adding user to stack: " + err.Error())
+	}
 
 	// Return nothing because there are no failures
 	return nil
 }
 
-func GetOffStack(tableId string, name string) (err error) {
+func GetOffStack(tableId string, speakerId string) (err error) {
 	// Get sqlite db connection
 	sqliteDatabase, _ := sql.Open("sqlite3", "./sqlite-database.db")
 	defer sqliteDatabase.Close()
 
 	// Prepare table update SQL
-	removeUserFromStackTableSQL := "DELETE FROM '" + tableId + "' WHERE name=?;"
-	log.Println("Removing " + name + " to stack " + tableId)
+	removeUserFromStackTableSQL := "DELETE FROM '" + tableId + "' WHERE speakerId=?;"
 	statement, err := sqliteDatabase.Prepare(removeUserFromStackTableSQL)
 	if err != nil {
 		log.Fatal(err.Error())
@@ -92,7 +95,10 @@ func GetOffStack(tableId string, name string) (err error) {
 	defer statement.Close()
 
 	// Execute new table update
-	statement.Exec(name)
+	_, err = statement.Exec(speakerId)
+	if err != nil {
+		fmt.Println("Error removing user from stack: " + err.Error())
+	}
 
 	// Return nothing because there are no failures
 	return nil
@@ -104,7 +110,7 @@ func ShowCurrentStack(tableId string) (stackUsers []User, err error) {
 	defer sqliteDatabase.Close()
 
 	// Prepare SELECT query
-	showCurrentStackTableSQL := "SELECT id, name FROM '" + tableId + "';"
+	showCurrentStackTableSQL := "SELECT speakerPosition, speakerId, name FROM '" + tableId + "';"
 	rows, err := sqliteDatabase.Query(showCurrentStackTableSQL)
 	if err != nil {
 		log.Fatal(err.Error())
@@ -115,7 +121,7 @@ func ShowCurrentStack(tableId string) (stackUsers []User, err error) {
 	// Parse database rows to User object slice 
 	for rows.Next() {
 		var stackUser User
-		err := rows.Scan(&stackUser.SpeakerPostition, &stackUser.Name)
+		err := rows.Scan(&stackUser.SpeakerPostition, &stackUser.SpeakerId, &stackUser.Name)
 		if err != nil {
 			fmt.Println("Error scanning DB results: " + err.Error())
 		}

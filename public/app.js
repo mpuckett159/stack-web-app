@@ -106,7 +106,7 @@ function messageListener(self, event) {
     if (data) {
         for(var speaker in data) {
             self.stackContent += '<div class="chip">'
-                + data[speaker].name
+                + data[speaker].name + "<br/>" + data[speaker].speakerId
             + '</div><br/>';
         };
     }

@@ -14,6 +14,7 @@ import (
 
 	"stack-web-app/frontend/db"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -50,6 +51,9 @@ type Client struct {
 
 	// Buffered channel of outbound messages.
 	send chan []byte
+
+	// Unique client ID
+	clientId string
 }
 
 type WsReturn struct {
@@ -87,9 +91,9 @@ func (c *Client) readPump() {
 
 		// Put user on/off stack based on action in request
 		if(messageJson.Action == "on") {
-			db.GetOnStack(messageJson.TableId, messageJson.Name)
+			db.GetOnStack(messageJson.TableId, c.clientId, messageJson.Name)
 		} else if (messageJson.Action == "off") {
-			db.GetOffStack(messageJson.TableId, messageJson.Name)
+			db.GetOffStack(messageJson.TableId, c.clientId)
 		}
 
 		// Get current stack back and push to the broadcast message queue
@@ -173,7 +177,8 @@ func GetWS(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
+	clientId := uuid.New().String()
+	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256), clientId: clientId}
 	client.hub.register <- client
 
 	// Push current stack out to clients. Should update eventually to only push out to new users somehow
