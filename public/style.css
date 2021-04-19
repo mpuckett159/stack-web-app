@@ -8,7 +8,7 @@ main {
     flex: 1 0 auto;
 }
 
-#card-content {
+.card-content {
     min-height: 10vh;
     height: 80%;
     width: 30%;
