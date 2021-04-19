@@ -63,7 +63,7 @@ new Vue({
 
             // Join an on-going meeting by ID and update session values
             this.meetingUrl = window.location.host + '/?meeting_id=' + this.tableId;
-            this.ws = new WebSocket('ws://' + window.location.host + '/ws?meeting_id=' + this.tableId);
+            this.ws = new WebSocket('wss://' + window.location.host + '/ws?meeting_id=' + this.tableId);
             this.joined = true;
 
             // Set up event listeners to handle incoming/outgoing messages and open/close actions
@@ -91,7 +91,7 @@ new Vue({
 
             // Set up new WebSocket to be used with the required meeting ID and update session values
             this.meetingUrl = window.location.host + '/?meeting_id=' + this.tableId;
-            this.ws = new WebSocket('ws://' + window.location.host + '/ws?meeting_id=' + this.tableId);
+            this.ws = new WebSocket('wss://' + window.location.host + '/ws?meeting_id=' + this.tableId);
             this.joined = true;
 
             // Set up event listeners to handle incoming/outgoing messages and open/close actions
