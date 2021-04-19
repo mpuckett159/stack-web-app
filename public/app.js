@@ -105,8 +105,9 @@ function messageListener(self, event) {
     var data = $.parseJSON(event.data);
     if (data) {
         for(var speaker in data) {
+            var id = data[speaker].speakerId.split("-")
             self.stackContent += '<div class="chip">'
-                + data[speaker].name + "<br/>" + data[speaker].speakerId
+                + data[speaker].name + "<br/>" + id[id.length - 1]
             + '</div><br/>';
         };
     }
