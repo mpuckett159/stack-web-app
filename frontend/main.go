@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"stack-web-app/frontend/wshandler"
 	"stack-web-app/frontend/db"
@@ -32,6 +33,17 @@ func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "80"
+	}
+
+	for _, encodedRoute := range strings.Split(os.Getenv("ROUTES"), ",") {
+		if encodedRoute == "" {
+			continue
+		}
+		pathAndBody := strings.SplitN(encodedRoute, "=", 2)
+		path, body := pathAndBody[0], pathAndBody[1]
+		router.HandleFunc("/"+path, func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, body)
+		})
 	}
 
 	bindAddr := fmt.Sprintf(":%s", port)
