@@ -176,6 +176,23 @@ func GetWS(w http.ResponseWriter, r *http.Request) {
 	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
 	client.hub.register <- client
 
+	// Push current stack out to clients. Should update eventually to only push out to new users somehow
+	// Get current stack back and push to the broadcast message queue
+	stackUsers, err := db.ShowCurrentStack(hubId)
+	if err != nil {
+		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+			log.Printf("error: %v", err)
+		}
+	}
+	messageUsers, err := json.Marshal(stackUsers)
+	if err != nil {
+		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+			log.Printf("error: %v", err)
+		}
+	}
+	message := bytes.TrimSpace(bytes.Replace(messageUsers, newline, space, -1))
+	client.hub.broadcast <- message
+
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
 	go client.writePump()
