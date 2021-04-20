@@ -25,20 +25,24 @@ func PruneEmptyMeetings() {
 		case <-meetingPruneTicker.C:
 			ContextLogger.Debug("Running pruner.")
 			for hubId, hub := range HubPool {
+				clearHub := true
 				// Iterate through all clients and break out if an active client is found
 				for _, client := range hub.clients {
 					if client {
+						clearHub = false
 						break
 					}
 				}
-				ContextLogger.Debug("Empty meetings found, attempting to prune.")
-		
+
 				// If no active clients found prune meeting from hubPool and delete table from SQL
-				delete(HubPool, hubId)
-				ContextLogger.Debug("Successfully deleted meeting hub: " + hubId)
-				err := db.DeleteTable(hubId)
-				if err != nil {
-					ContextLogger.Warning("Error deleting meeting table: " + err.Error())
+				if clearHub {
+					ContextLogger.Debug("Empty meeting found, attempting to prune.")
+					delete(HubPool, hubId)
+					ContextLogger.Debug("Successfully deleted meeting hub: " + hubId)
+					err := db.DeleteTable(hubId)
+					if err != nil {
+						ContextLogger.Warning("Error deleting meeting table: " + err.Error())
+					}
 				}
 			}
 		}
