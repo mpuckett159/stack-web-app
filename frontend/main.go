@@ -33,7 +33,7 @@ func main() {
 	// Set up gorilla mux router handling
 	flag.Parse()
 	db.Start()
-	wshandler.RunPruner()
+	go wshandler.PruneEmptyMeetings()
 	router := mux.NewRouter()
 	router.HandleFunc("/", wshandler.GetWS).Methods("GET")
 	router.HandleFunc("/", wshandler.PostWS).Methods("POST")
