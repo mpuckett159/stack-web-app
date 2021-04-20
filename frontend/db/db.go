@@ -33,7 +33,7 @@ func CreateTable(newTableId string) (err error) {
 	defer sqliteDatabase.Close()
 
 	// Prepare table creation SQL
-	createMeetingTableSQL := "CREATE TABLE IF NOT EXISTS '" + newTableId + "' (speakerPosition INTEGER NOT NULL PRIMARY KEY, speakerId TEXT UNIQUE, name TEXT)"
+	createMeetingTableSQL := "CREATE TABLE IF NOT EXISTS '" + newTableId + "' (speakerPosition INTEGER NOT NULL PRIMARY KEY, speakerId TEXT UNIQUE, name TEXT);"
 	statement, err := sqliteDatabase.Prepare(createMeetingTableSQL)
 	if err != nil {
 		log.Fatal("Error preparing statement to create meeting table: " + err.Error())
@@ -45,6 +45,36 @@ func CreateTable(newTableId string) (err error) {
 	_, err = statement.Exec()
 	if err != nil {
 		log.Fatal("Error creating meeting table: " + err.Error())
+		return err
+	}
+
+	// Return the new table ID
+	return nil
+}
+
+// DeleteTable removes a table from the SQL database to free up resources. This
+// will primarily be used for removing empty meeting tables by the pruner in a
+// goroutine. We will not be using vacuum here but may look into doing this later
+// in a similar timed fashion and just look for the OS system free space to be
+// say 1.25x the current SQL file size or something for safety.
+func DeleteTable(tableId string) (err error) {
+	// Get sqlite db connection
+	sqliteDatabase, _ := sql.Open("sqlite3", "./sqlite-database.db")
+	defer sqliteDatabase.Close()
+
+	// Prepare table creation SQL
+	createMeetingTableSQL := "DROP TABLE IF EXISTS '" + tableId + "';"
+	statement, err := sqliteDatabase.Prepare(createMeetingTableSQL)
+	if err != nil {
+		log.Fatal("Error preparing statement to delete meeting table: " + err.Error())
+		return err
+	}
+	defer statement.Close()
+
+	// Execute new table creation
+	_, err = statement.Exec()
+	if err != nil {
+		log.Fatal("Error deleting meeting table: " + err.Error())
 		return err
 	}
 
