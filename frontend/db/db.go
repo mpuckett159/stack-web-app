@@ -2,11 +2,10 @@ package db
 
 import (
 	"database/sql"
-	"fmt"
-	"log"
 	"os"
 
 	_ "github.com/mattn/go-sqlite3"
+	log "github.com/sirupsen/logrus"
 )
 
 type User struct {
@@ -16,27 +15,44 @@ type User struct {
 }
 
 func Start() {
+	// Add to context logger
+	ContextLogger = ContextLogger.WithFields(log.Fields{
+		"function": "Start",
+		"module": "db",
+	})
+
 	// Delete and recreate existing sqlite file just in case
 	os.Remove("sqlite-database.db")
-	log.Println("Creating sqlite-database.db...")
+	ContextLogger.Info("Creating sqlite-database.db...")
 	file, err := os.Create("sqlite-database.db")
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 	file.Close()
-	log.Println("sqlite-database.db created")
+	log.Info("sqlite-database.db created")
 }
 
 func CreateTable(newTableId string) (err error) {
+	// Add to context logger
+	ContextLogger = ContextLogger.WithFields(log.Fields{
+		"function": "CreateTable",
+		"module": "db",
+		"tableId": newTableId,
+	})
+
 	// Get sqlite db connection
 	sqliteDatabase, _ := sql.Open("sqlite3", "./sqlite-database.db")
 	defer sqliteDatabase.Close()
 
 	// Prepare table creation SQL
 	createMeetingTableSQL := "CREATE TABLE IF NOT EXISTS '" + newTableId + "' (speakerPosition INTEGER NOT NULL PRIMARY KEY, speakerId TEXT UNIQUE, name TEXT);"
+	log.WithField("sqlQuery", createMeetingTableSQL).Debug("Preparing SQL query")
 	statement, err := sqliteDatabase.Prepare(createMeetingTableSQL)
 	if err != nil {
-		log.Fatal("Error preparing statement to create meeting table: " + err.Error())
+		log.WithFields(log.Fields{
+			"sqlQuery": createMeetingTableSQL,
+			"error": err.Error(),
+		}).Error("Error preparing statement to create meeting table")
 		return err
 	}
 	defer statement.Close()
@@ -44,7 +60,10 @@ func CreateTable(newTableId string) (err error) {
 	// Execute new table creation
 	_, err = statement.Exec()
 	if err != nil {
-		log.Fatal("Error creating meeting table: " + err.Error())
+		log.WithFields(log.Fields{
+			"sqlQuery": createMeetingTableSQL,
+			"error": err.Error(),
+		}).Error("Error executing statement to create meeting table")
 		return err
 	}
 
@@ -58,15 +77,26 @@ func CreateTable(newTableId string) (err error) {
 // in a similar timed fashion and just look for the OS system free space to be
 // say 1.25x the current SQL file size or something for safety.
 func DeleteTable(tableId string) (err error) {
+	// Add to context logger
+	ContextLogger = ContextLogger.WithFields(log.Fields{
+		"function": "DeleteTable",
+		"module": "db",
+		"tableId": tableId,
+	})
+
 	// Get sqlite db connection
 	sqliteDatabase, _ := sql.Open("sqlite3", "./sqlite-database.db")
 	defer sqliteDatabase.Close()
 
 	// Prepare table creation SQL
-	createMeetingTableSQL := "DROP TABLE IF EXISTS '" + tableId + "';"
-	statement, err := sqliteDatabase.Prepare(createMeetingTableSQL)
+	deleteMeetingTableSQL := "DROP TABLE IF EXISTS '" + tableId + "';"
+	log.WithField("sqlQuery", deleteMeetingTableSQL).Debug("Preparing SQL query")
+	statement, err := sqliteDatabase.Prepare(deleteMeetingTableSQL)
 	if err != nil {
-		log.Fatal("Error preparing statement to delete meeting table: " + err.Error())
+		log.WithFields(log.Fields{
+			"sqlQuery": deleteMeetingTableSQL,
+			"error": err.Error(),
+		}).Error("Error preparing statement to delete meeting table")
 		return err
 	}
 	defer statement.Close()
@@ -74,7 +104,10 @@ func DeleteTable(tableId string) (err error) {
 	// Execute new table creation
 	_, err = statement.Exec()
 	if err != nil {
-		log.Fatal("Error deleting meeting table: " + err.Error())
+		log.WithFields(log.Fields{
+			"sqlQuery": deleteMeetingTableSQL,
+			"error": err.Error(),
+		}).Error("Error executing statement to delete meeting table")
 		return err
 	}
 
@@ -83,15 +116,28 @@ func DeleteTable(tableId string) (err error) {
 }
 
 func GetOnStack(tableId string, speakerId string, name string) (err error) {
+	// Add to context logger
+	ContextLogger = ContextLogger.WithFields(log.Fields{
+		"function": "GetOnStack",
+		"module": "db",
+		"tableId": tableId,
+		"speakerId": speakerId,
+		"name": name,
+	})
+
 	// Get sqlite db connection
 	sqliteDatabase, _ := sql.Open("sqlite3", "./sqlite-database.db")
 	defer sqliteDatabase.Close()
 
 	// Prepare table update SQL
 	addUserToStackTableSQL := "INSERT INTO '" + tableId + "' (speakerId, name) VALUES (?,?);"
+	log.WithField("sqlQuery", addUserToStackTableSQL).Debug("Preparing SQL query")
 	statement, err := sqliteDatabase.Prepare(addUserToStackTableSQL)
 	if err != nil {
-		log.Fatal("Error preparing statment to add user to stack: " + err.Error())
+		log.WithFields(log.Fields{
+			"sqlQuery": addUserToStackTableSQL,
+			"error": err.Error(),
+		}).Error("Error preparing statement to delete meeting table")
 		return err
 	}
 	defer statement.Close()
@@ -99,7 +145,11 @@ func GetOnStack(tableId string, speakerId string, name string) (err error) {
 	// Execute new table update
 	_, err = statement.Exec(speakerId, name)
 	if err != nil {
-		fmt.Println("Error adding user to stack: " + err.Error())
+		log.WithFields(log.Fields{
+			"sqlQuery": addUserToStackTableSQL,
+			"error": err.Error(),
+		}).Error("Error executing statement to delete meeting table")
+		return err
 	}
 
 	// Return nothing because there are no failures
@@ -107,15 +157,27 @@ func GetOnStack(tableId string, speakerId string, name string) (err error) {
 }
 
 func GetOffStack(tableId string, speakerId string) (err error) {
+	// Add to context logger
+	ContextLogger = ContextLogger.WithFields(log.Fields{
+		"function": "GetOffStack",
+		"module": "db",
+		"tableId": tableId,
+		"speakerId": speakerId,
+	})
+
 	// Get sqlite db connection
 	sqliteDatabase, _ := sql.Open("sqlite3", "./sqlite-database.db")
 	defer sqliteDatabase.Close()
 
 	// Prepare table update SQL
 	removeUserFromStackTableSQL := "DELETE FROM '" + tableId + "' WHERE speakerId=?;"
+	log.WithField("sqlQuery", removeUserFromStackTableSQL).Debug("Preparing SQL query")
 	statement, err := sqliteDatabase.Prepare(removeUserFromStackTableSQL)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.WithFields(log.Fields{
+			"sqlQuery": removeUserFromStackTableSQL,
+			"error": err.Error(),
+		}).Error("Error preparing statement to delete meeting table")
 		return err
 	}
 	defer statement.Close()
@@ -123,7 +185,10 @@ func GetOffStack(tableId string, speakerId string) (err error) {
 	// Execute new table update
 	_, err = statement.Exec(speakerId)
 	if err != nil {
-		fmt.Println("Error removing user from stack: " + err.Error())
+		log.WithFields(log.Fields{
+			"sqlQuery": removeUserFromStackTableSQL,
+			"error": err.Error(),
+		}).Error("Error executing statement to delete meeting table")
 	}
 
 	// Return nothing because there are no failures
@@ -131,15 +196,26 @@ func GetOffStack(tableId string, speakerId string) (err error) {
 }
 
 func ShowCurrentStack(tableId string) (stackUsers []User, err error) {
+	// Add to context logger
+	ContextLogger = ContextLogger.WithFields(log.Fields{
+		"function": "ShowCurrentStack",
+		"module": "db",
+		"tableId": tableId,
+	})
+
 	// Get sqlite db connection
 	sqliteDatabase, _ := sql.Open("sqlite3", "./sqlite-database.db")
 	defer sqliteDatabase.Close()
 
 	// Prepare SELECT query
 	showCurrentStackTableSQL := "SELECT speakerPosition, speakerId, name FROM '" + tableId + "';"
+	log.WithField("sqlQuery", showCurrentStackTableSQL).Debug("Preparing SQL query")
 	rows, err := sqliteDatabase.Query(showCurrentStackTableSQL)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.WithFields(log.Fields{
+			"sqlQuery": showCurrentStackTableSQL,
+			"error": err.Error(),
+		}).Error("Error querying meeting table")
 		return nil, err
 	}
 	defer rows.Close()
@@ -149,7 +225,10 @@ func ShowCurrentStack(tableId string) (stackUsers []User, err error) {
 		var stackUser User
 		err := rows.Scan(&stackUser.SpeakerPostition, &stackUser.SpeakerId, &stackUser.Name)
 		if err != nil {
-			fmt.Println("Error scanning DB results: " + err.Error())
+			log.WithFields(log.Fields{
+				"sqlQuery": showCurrentStackTableSQL,
+				"error": err.Error(),
+			}).Error("Error scanning query results for meeting table")
 		}
 		stackUsers = append(stackUsers, stackUser)
 	}

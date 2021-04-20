@@ -5,8 +5,11 @@
 package wshandler
 
 import (
-	"stack-web-app/frontend/db"
+	"fmt"
 
+	"stack-web-app/frontend/db"
+	
+	log "github.com/sirupsen/logrus"
 	"github.com/google/uuid"
 )
 
@@ -33,10 +36,19 @@ type Hub struct {
 var HubPool = map[string]*Hub{}
 
 func newHub() *Hub {
+	// Update context logger
+	ContextLogger = ContextLogger.WithFields(log.Fields{
+		"module": "hub",
+		"function": "newHub",
+	})
+
 	// Create new UUID to declare new hub with
 	hubId := uuid.New().String()
 
 	// Create new DB table to store users in
+	ContextLogger.WithFields(log.Fields{
+		"hubId": hubId,
+	}).Debug("Creating meeting hub and database table.")
 	db.CreateTable(hubId)
 	hub := Hub{
 		broadcast:  make(chan []byte),
@@ -45,31 +57,67 @@ func newHub() *Hub {
 		clients:    make(map[*Client]bool),
 		hubId:		hubId,
 	}
+	ContextLogger.WithFields(log.Fields{
+		"hubId": hubId,
+		"hub": fmt.Sprintf("%+v", hub),
+	}).Debug("Meeting hub and database table successfully created.")
 
 	// Add hub ID to hub pointer map for quick meeting hub lookup
 	HubPool[hubId] = &hub
+	ContextLogger.WithFields(log.Fields{
+		"hub": fmt.Sprintf("%+v", hub),
+		"hubPoolMap": HubPool,
+	}).Debug("Meeting hub successfully added to HubPool.")
 
 	// Return pointer to the hub object
 	return &hub
 }
 
 func (h *Hub) run() {
+	// Update context logger
+	ContextLogger = ContextLogger.WithFields(log.Fields{
+		"module": "hub",
+		"function": "run",
+	})
+
 	for {
 		select {
 		case client := <-h.register:
 			h.clients[client] = true
+			ContextLogger.WithFields(log.Fields{
+				"client": fmt.Sprintf("%+v", client),
+				"hub": fmt.Sprintf("%+v", h),
+			}).Debug("Client successfully registered to hub.")
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
 				close(client.send)
+				ContextLogger.WithFields(log.Fields{
+					"client": fmt.Sprintf("%+v", client),
+					"hub": fmt.Sprintf("%+v", h),
+				}).Debug("Client successfully unregistered from hub.")
 			}
 		case message := <-h.broadcast:
+			ContextLogger.WithFields(log.Fields{
+				"message": fmt.Sprintf("%+v", message),
+				"hub": fmt.Sprintf("%+v", h),
+			}).Debug("Message being sent to all clients in hub.")
 			for client := range h.clients {
 				select {
 				case client.send <- message:
+					ContextLogger.WithFields(log.Fields{
+						"client": fmt.Sprintf("%+v", client),
+						"hub": fmt.Sprintf("%+v", h),
+						"message": fmt.Sprintf("%+v", message),
+					}).Debug("Broadcast message being sent to client.")
 				default:
 					close(client.send)
 					delete(h.clients, client)
+					ContextLogger.WithFields(log.Fields{
+						"client": fmt.Sprintf("%+v", client),
+						"hub": fmt.Sprintf("%+v", h),
+						"message": fmt.Sprintf("%+v", message),
+					}).Debug("Unable to send message to client, successfully unregistered client from hub.")
 				}
 			}
 		}

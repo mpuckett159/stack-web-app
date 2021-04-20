@@ -7,13 +7,13 @@ package wshandler
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 	"encoding/json"
 
 	"stack-web-app/frontend/db"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -66,6 +66,14 @@ type WsReturn struct {
 // ensures that there is at most one reader on a connection by executing all
 // reads from this goroutine.
 func (c *Client) readPump() {
+	// Update context logger
+	ContextLogger = ContextLogger.WithFields(log.Fields{
+		"module": "client",
+		"function": "readPump",
+		"client": fmt.Sprintf("%+v", c),
+		"hub": fmt.Sprintf("%+v", c.hub),
+	})
+
 	defer func() {
 		c.hub.unregister <- c
 		c.conn.Close()
@@ -84,7 +92,9 @@ func (c *Client) readPump() {
 		err := c.conn.ReadJSON(&messageJson)
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
+				ContextLogger.WithFields(log.Fields{
+					"closeError": err.Error(),
+				}).Error("Unexpected closure from client.")
 			}
 			break
 		}
@@ -99,17 +109,20 @@ func (c *Client) readPump() {
 		// Get current stack back and push to the broadcast message queue
 		stackUsers, err := db.ShowCurrentStack(messageJson.TableId)
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
-			}
+			ContextLogger.WithFields(log.Fields{
+				"dbError": err.Error(),
+			}).Error("Error getting current meeting stack contents.")
 		}
 		messageUsers, err := json.Marshal(stackUsers)
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
-			}
+			ContextLogger.WithFields(log.Fields{
+				"dbError": err.Error(),
+			}).Error("Error marshalling JSON for response to client.")
 		}
 		message := bytes.TrimSpace(bytes.Replace(messageUsers, newline, space, -1))
+		ContextLogger.WithFields(log.Fields{
+			"message": fmt.Sprintf("%+v", message),
+		}).Debug("Sending message from client to hub broadcast.")
 		c.hub.broadcast <- message
 	}
 }
@@ -120,6 +133,15 @@ func (c *Client) readPump() {
 // application ensures that there is at most one writer to a connection by
 // executing all writes from this goroutine.
 func (c *Client) writePump() {
+	// Update context logger
+	ContextLogger = ContextLogger.WithFields(log.Fields{
+		"module": "client",
+		"function": "writePump",
+		"client": fmt.Sprintf("%+v", c),
+		"hub": fmt.Sprintf("%+v", c.hub),
+	})
+
+	// Set ticker
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
@@ -128,9 +150,11 @@ func (c *Client) writePump() {
 	for {
 		select {
 		case message, ok := <-c.send:
+			ContextLogger.Debug("Sending message to client?")
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
+				ContextLogger.Debug("Hub has closed this channel.")
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
@@ -149,11 +173,13 @@ func (c *Client) writePump() {
 			}
 
 			if err := w.Close(); err != nil {
+				ContextLogger.Warning("Error closing writer channel or something?")
 				return
 			}
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				ContextLogger.Warning("Error pinging the websocket I think.")
 				return
 			}
 		}
@@ -162,14 +188,23 @@ func (c *Client) writePump() {
 
 // GetWS sets up the new WebSocket and 
 func GetWS(w http.ResponseWriter, r *http.Request) {
+	// Update context logger
+	ContextLogger = ContextLogger.WithFields(log.Fields{
+		"module": "client",
+		"function": "GetWS",
+	})
+	
+	// Getting hub ID from http request query params
 	hubId := r.URL.Query().Get("meeting_id")
+	ContextLogger = ContextLogger.WithField("hubId", hubId)
 	var hub *Hub
 
 	// Look for existing meeting hub from ID provided in URL
 	if v, ok := HubPool[hubId]; ok {
 		hub = v
+		ContextLogger = ContextLogger.WithField("hub", fmt.Sprintf("%+v", hub))
 	} else {
-		fmt.Println("Meeting with id " + hubId + " not found.")
+		ContextLogger.Debug("Meeting not found.")
 		return
 	}
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -178,45 +213,55 @@ func GetWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	clientId := uuid.New().String()
+	ContextLogger = ContextLogger.WithField("clientId", clientId)
 	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256), clientId: clientId}
+	ContextLogger = ContextLogger.WithField("client", fmt.Sprintf("%+v", client))
 	client.hub.register <- client
+	ContextLogger.Debug("New client successfully registered with hub.")
 
 	// Push current stack out to clients. Should update eventually to only push out to new users somehow
 	// Get current stack back and push to the broadcast message queue
 	stackUsers, err := db.ShowCurrentStack(hubId)
 	if err != nil {
-		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-			log.Printf("error: %v", err)
-		}
+		ContextLogger.WithField("error", err.Error()).Error("Error fetching current speaker stack.")
 	}
 	messageUsers, err := json.Marshal(stackUsers)
 	if err != nil {
-		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-			log.Printf("error: %v", err)
-		}
+		ContextLogger.WithField("error", err.Error()).Error("Error marshaling current stack for client response message.")
 	}
 	message := bytes.TrimSpace(bytes.Replace(messageUsers, newline, space, -1))
 	client.hub.broadcast <- message
+	ContextLogger.Debug("Message successfully sent to hub broadcast channel.")
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
+	ContextLogger.Debug("Starting client read/write goroutines.")
 	go client.writePump()
 	go client.readPump()
 }
 
 // PostWS creates new meeting table in SQLite DB and returns the ID to the client
 func PostWS(w http.ResponseWriter, r *http.Request) {
+	// Update context logger
+	ContextLogger = ContextLogger.WithFields(log.Fields{
+		"module": "client",
+		"function": "PostWS",
+	})
+
 	// Create new hub for meeting and return to be used for client creation
 	hub := newHub()
+	ContextLogger = ContextLogger.WithField("hub", fmt.Sprintf("%+v", hub))
+	ContextLogger.Debug("Starting new hub goroutine.")
 	go hub.run()
 
 	// Return new meeting ID to client
 	returnBlob := WsReturn{hub.hubId}
 	rJson, err := json.Marshal(returnBlob)
 	if err != nil {
-		fmt.Println("Error marshalling JSON response.")
+		ContextLogger.Error("Error marshalling JSON response.")
 		return
 	}
+	ContextLogger.WithField("responseJson", fmt.Sprintf("%+v", returnBlob)).Debug("Sending response to requestor.")
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(rJson)

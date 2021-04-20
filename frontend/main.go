@@ -14,10 +14,22 @@ import (
 	"stack-web-app/frontend/db"
 
     "github.com/gorilla/handlers"
+	log "github.com/sirupsen/logrus"
 	"github.com/gorilla/mux"
 )
 
 func main() {
+	// Get any necessary environment variables
+	_, debug := os.LookupEnv("DEBUG")
+
+	// Set logger settings
+	log.SetOutput(os.Stdout)
+	if debug {
+		log.SetLevel(log.DebugLevel)
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
+
 	// Set up gorilla mux router handling
 	flag.Parse()
 	db.Start()
@@ -34,13 +46,14 @@ func main() {
 	if port == "" {
 		port = "80"
 	}
-
-	bindAddr := fmt.Sprintf(":%s", port)
-	fmt.Println()
-	fmt.Printf("==> Server listening at %s 🚀\n", bindAddr)
+	log.WithFields(log.Fields{
+		"port": port,
+	}).Info(fmt.Sprintf("==> Server listening on port %s 🚀", port))
 
 	err := http.ListenAndServe(fmt.Sprintf(":%s", port), loggedRouter)
 	if err != nil {
-		panic(err)
+		log.WithFields(log.Fields{
+			"error":    err.Error(),
+		  }).Fatal("Fatal error with HTTP server")
 	}
 }
