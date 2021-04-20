@@ -56,6 +56,7 @@ type Client struct {
 	clientId string
 }
 
+// The websocket information struct for the a new meeting creation POST method
 type WsReturn struct {
 	MeetingId	string	`json:"meetingId"`
 }
@@ -186,7 +187,8 @@ func (c *Client) writePump() {
 	}
 }
 
-// GetWS sets up the new WebSocket and 
+// GetWS sets up the new WebSocket and connects the client to it. On first connect it also fetches
+// the current speaker stack and pushes it out to all the connected clients.
 func GetWS(w http.ResponseWriter, r *http.Request) {
 	// Update context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{

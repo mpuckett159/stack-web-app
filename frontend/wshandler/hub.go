@@ -35,6 +35,7 @@ type Hub struct {
 // Declare global slice of hub ID to hub pointer map to track existing meeting hubs
 var HubPool = map[string]*Hub{}
 
+// newHub crates a new hub and registers it with the HubPool global hub table.
 func newHub() *Hub {
 	// Update context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
@@ -73,6 +74,7 @@ func newHub() *Hub {
 	return &hub
 }
 
+// run is used to start new hubs that have been created.
 func (h *Hub) run() {
 	// Update context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{

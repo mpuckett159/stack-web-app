@@ -8,12 +8,17 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// User object that describes the database table columns and is used to push the info
+// back to the websocket client for speaker stack rendering
 type User struct {
 	SpeakerPostition	int16	`json:"speakerPosition"`
 	SpeakerId			string	`json:"speakerId"`
 	Name				string	`json:"name"`
 }
 
+// Start is used to start the database, that is remove any potentially existing db files
+// and create the new database file. We don't care about old database contents and don't
+// want it there at all so we delete before creating just to be sure.
 func Start() {
 	// Add to context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
@@ -32,6 +37,7 @@ func Start() {
 	log.Info("sqlite-database.db created")
 }
 
+// CreateTable is used to create a new meeting table in the database.
 func CreateTable(newTableId string) (err error) {
 	// Add to context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
@@ -115,6 +121,7 @@ func DeleteTable(tableId string) (err error) {
 	return nil
 }
 
+// GetOnStack is the function called when a user wants to put themselves at the end of the speaker queue.
 func GetOnStack(tableId string, speakerId string, name string) (err error) {
 	// Add to context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
@@ -156,6 +163,8 @@ func GetOnStack(tableId string, speakerId string, name string) (err error) {
 	return nil
 }
 
+// GetOffStack is called when a user wants to remove themselves from the speaker queue,
+// moving everyone behind them up a position.
 func GetOffStack(tableId string, speakerId string) (err error) {
 	// Add to context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
@@ -195,6 +204,9 @@ func GetOffStack(tableId string, speakerId string) (err error) {
 	return nil
 }
 
+// ShowCurrent Stack is used to return the current contents of the speaker stack
+// and is used on new connections and after a user has either gotten on or taken
+// themselves off of the speaker stack.
 func ShowCurrentStack(tableId string) (stackUsers []User, err error) {
 	// Add to context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
