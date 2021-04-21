@@ -92,6 +92,7 @@ func (h *Hub) run() {
 			}).Debug("Client successfully registered to hub.")
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
+				db.GetOffStack(h.hubId, client.clientId)
 				delete(h.clients, client)
 				close(client.send)
 				ContextLogger.WithFields(log.Fields{
@@ -101,7 +102,7 @@ func (h *Hub) run() {
 			}
 		case message := <-h.broadcast:
 			ContextLogger.WithFields(log.Fields{
-				"message": fmt.Sprintf("%+v", message),
+				"message": fmt.Sprintf("%+v", string(message)),
 				"hub": fmt.Sprintf("%+v", h),
 			}).Debug("Message being sent to all clients in hub.")
 			for client := range h.clients {
@@ -110,7 +111,7 @@ func (h *Hub) run() {
 					ContextLogger.WithFields(log.Fields{
 						"client": fmt.Sprintf("%+v", client),
 						"hub": fmt.Sprintf("%+v", h),
-						"message": fmt.Sprintf("%+v", message),
+						"message": fmt.Sprintf("%+v", string(message)),
 					}).Debug("Broadcast message being sent to client.")
 				default:
 					close(client.send)
@@ -118,7 +119,7 @@ func (h *Hub) run() {
 					ContextLogger.WithFields(log.Fields{
 						"client": fmt.Sprintf("%+v", client),
 						"hub": fmt.Sprintf("%+v", h),
-						"message": fmt.Sprintf("%+v", message),
+						"message": fmt.Sprintf("%+v", string(message)),
 					}).Debug("Unable to send message to client, successfully unregistered client from hub.")
 				}
 			}
