@@ -122,7 +122,7 @@ func (c *Client) readPump() {
 		}
 		message := bytes.TrimSpace(bytes.Replace(messageUsers, newline, space, -1))
 		ContextLogger.WithFields(log.Fields{
-			"message": fmt.Sprintf("%+v", message),
+			"message": fmt.Sprintf("%+v", string(message)),
 		}).Debug("Sending message from client to hub broadcast.")
 		c.hub.broadcast <- message
 	}
