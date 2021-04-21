@@ -5,6 +5,8 @@
 package wshandler
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 
 	"stack-web-app/frontend/db"
@@ -98,7 +100,26 @@ func (h *Hub) run() {
 				ContextLogger.WithFields(log.Fields{
 					"client": fmt.Sprintf("%+v", client),
 					"hub": fmt.Sprintf("%+v", h),
-				}).Debug("Client successfully unregistered from hub.")
+				}).Debug("Client successfully unregistered from hub, updating stack to rest of group.")
+
+				// Get current stack back and push to the broadcast message queue
+				stackUsers, err := db.ShowCurrentStack(h.hubId)
+				if err != nil {
+					ContextLogger.WithFields(log.Fields{
+						"dbError": err.Error(),
+					}).Error("Error getting current meeting stack contents.")
+				}
+				messageUsers, err := json.Marshal(stackUsers)
+				if err != nil {
+					ContextLogger.WithFields(log.Fields{
+						"dbError": err.Error(),
+					}).Error("Error marshalling JSON for response to client.")
+				}
+				message := bytes.TrimSpace(bytes.Replace(messageUsers, newline, space, -1))
+				ContextLogger.WithFields(log.Fields{
+					"message": fmt.Sprintf("%+v", string(message)),
+				}).Debug("Sending message from client to hub broadcast.")
+				h.broadcast <- message
 			}
 		case message := <-h.broadcast:
 			ContextLogger.WithFields(log.Fields{
