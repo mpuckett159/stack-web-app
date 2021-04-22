@@ -12,7 +12,6 @@ jobs:
     steps:
       - uses: Jerome1337/gofmt-action@v1.0.4
         with:
-          gofmt-path: './frontend'
           gofmt-flags: '-l -d'
   lint:
     name: lint
