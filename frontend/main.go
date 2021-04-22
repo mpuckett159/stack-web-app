@@ -24,6 +24,7 @@ func main() {
 
 	// Set logger settings
 	log.SetOutput(os.Stdout)
+	log.SetFormatter(&log.JSONFormatter{})
 	if debug {
 		log.SetLevel(log.DebugLevel)
 	} else {
