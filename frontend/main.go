@@ -10,12 +10,12 @@ import (
 	"net/http"
 	"os"
 
-	"stack-web-app/frontend/wshandler"
 	"stack-web-app/frontend/db"
+	"stack-web-app/frontend/wshandler"
 
-    "github.com/gorilla/handlers"
-	log "github.com/sirupsen/logrus"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -54,7 +54,7 @@ func main() {
 	err := http.ListenAndServe(fmt.Sprintf(":%s", port), loggedRouter)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"error":    err.Error(),
-		  }).Fatal("Fatal error with HTTP server")
+			"error": err.Error(),
+		}).Fatal("Fatal error with HTTP server")
 	}
 }

@@ -11,9 +11,9 @@ import (
 // User object that describes the database table columns and is used to push the info
 // back to the websocket client for speaker stack rendering
 type User struct {
-	SpeakerPostition	int16	`json:"speakerPosition"`
-	SpeakerId			string	`json:"speakerId"`
-	Name				string	`json:"name"`
+	SpeakerPostition int16  `json:"speakerPosition"`
+	SpeakerId        string `json:"speakerId"`
+	Name             string `json:"name"`
 }
 
 // Start is used to start the database, that is remove any potentially existing db files
@@ -23,7 +23,7 @@ func Start() {
 	// Add to context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
 		"function": "Start",
-		"module": "db",
+		"module":   "db",
 	})
 
 	// Delete and recreate existing sqlite file just in case
@@ -42,8 +42,8 @@ func CreateTable(newTableId string) (err error) {
 	// Add to context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
 		"function": "CreateTable",
-		"module": "db",
-		"tableId": newTableId,
+		"module":   "db",
+		"tableId":  newTableId,
 	})
 
 	// Get sqlite db connection
@@ -57,7 +57,7 @@ func CreateTable(newTableId string) (err error) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"sqlQuery": createMeetingTableSQL,
-			"error": err.Error(),
+			"error":    err.Error(),
 		}).Error("Error preparing statement to create meeting table")
 		return err
 	}
@@ -68,7 +68,7 @@ func CreateTable(newTableId string) (err error) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"sqlQuery": createMeetingTableSQL,
-			"error": err.Error(),
+			"error":    err.Error(),
 		}).Error("Error executing statement to create meeting table")
 		return err
 	}
@@ -86,8 +86,8 @@ func DeleteTable(tableId string) (err error) {
 	// Add to context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
 		"function": "DeleteTable",
-		"module": "db",
-		"tableId": tableId,
+		"module":   "db",
+		"tableId":  tableId,
 	})
 
 	// Get sqlite db connection
@@ -101,7 +101,7 @@ func DeleteTable(tableId string) (err error) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"sqlQuery": deleteMeetingTableSQL,
-			"error": err.Error(),
+			"error":    err.Error(),
 		}).Error("Error preparing statement to delete meeting table")
 		return err
 	}
@@ -112,7 +112,7 @@ func DeleteTable(tableId string) (err error) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"sqlQuery": deleteMeetingTableSQL,
-			"error": err.Error(),
+			"error":    err.Error(),
 		}).Error("Error executing statement to delete meeting table")
 		return err
 	}
@@ -125,11 +125,11 @@ func DeleteTable(tableId string) (err error) {
 func GetOnStack(tableId string, speakerId string, name string) (err error) {
 	// Add to context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
-		"function": "GetOnStack",
-		"module": "db",
-		"tableId": tableId,
+		"function":  "GetOnStack",
+		"module":    "db",
+		"tableId":   tableId,
 		"speakerId": speakerId,
-		"name": name,
+		"name":      name,
 	})
 
 	// Get sqlite db connection
@@ -143,7 +143,7 @@ func GetOnStack(tableId string, speakerId string, name string) (err error) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"sqlQuery": addUserToStackTableSQL,
-			"error": err.Error(),
+			"error":    err.Error(),
 		}).Error("Error preparing statement to get on stack.")
 		return err
 	}
@@ -154,7 +154,7 @@ func GetOnStack(tableId string, speakerId string, name string) (err error) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"sqlQuery": addUserToStackTableSQL,
-			"error": err.Error(),
+			"error":    err.Error(),
 		}).Error("Error executing statement to get on stack.")
 		return err
 	}
@@ -168,9 +168,9 @@ func GetOnStack(tableId string, speakerId string, name string) (err error) {
 func GetOffStack(tableId string, speakerId string) (err error) {
 	// Add to context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
-		"function": "GetOffStack",
-		"module": "db",
-		"tableId": tableId,
+		"function":  "GetOffStack",
+		"module":    "db",
+		"tableId":   tableId,
 		"speakerId": speakerId,
 	})
 
@@ -185,7 +185,7 @@ func GetOffStack(tableId string, speakerId string) (err error) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"sqlQuery": removeUserFromStackTableSQL,
-			"error": err.Error(),
+			"error":    err.Error(),
 		}).Error("Error preparing statement to get off stack")
 		return err
 	}
@@ -196,7 +196,7 @@ func GetOffStack(tableId string, speakerId string) (err error) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"sqlQuery": removeUserFromStackTableSQL,
-			"error": err.Error(),
+			"error":    err.Error(),
 		}).Error("Error executing statement to get off stack")
 	}
 
@@ -211,8 +211,8 @@ func ShowCurrentStack(tableId string) (stackUsers []User, err error) {
 	// Add to context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
 		"function": "ShowCurrentStack",
-		"module": "db",
-		"tableId": tableId,
+		"module":   "db",
+		"tableId":  tableId,
 	})
 
 	// Get sqlite db connection
@@ -226,20 +226,20 @@ func ShowCurrentStack(tableId string) (stackUsers []User, err error) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"sqlQuery": showCurrentStackTableSQL,
-			"error": err.Error(),
+			"error":    err.Error(),
 		}).Error("Error querying meeting table")
 		return nil, err
 	}
 	defer rows.Close()
 
-	// Parse database rows to User object slice 
+	// Parse database rows to User object slice
 	for rows.Next() {
 		var stackUser User
 		err := rows.Scan(&stackUser.SpeakerPostition, &stackUser.SpeakerId, &stackUser.Name)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"sqlQuery": showCurrentStackTableSQL,
-				"error": err.Error(),
+				"error":    err.Error(),
 			}).Error("Error scanning query results for meeting table")
 		}
 		stackUsers = append(stackUsers, stackUser)
