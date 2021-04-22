@@ -209,6 +209,13 @@ func GetWS(w http.ResponseWriter, r *http.Request) {
 		ContextLogger.Debug("Meeting not found.")
 		return
 	}
+
+	// This is to enable local testing for myself. Probably stupid
+	_, disableCORS := os.LookupEnv("DISABLECORS")
+	if disableCORS {
+		upgrader.CheckOrigin = func(r *http.Request) bool { return true }
+	}
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
