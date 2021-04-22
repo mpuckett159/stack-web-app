@@ -331,5 +331,8 @@ func PostWS(w http.ResponseWriter, r *http.Request) {
 	ContextLogger.WithField("responseJson", fmt.Sprintf("%+v", returnBlob)).Debug("Sending response to requestor.")
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(rJson)
+	_, err = w.Write(rJson)
+	if err != nil {
+		ContextLogger.Error("Error writing response back to web session after user requested new meeting.")
+	}
 }
