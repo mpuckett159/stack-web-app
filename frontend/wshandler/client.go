@@ -6,10 +6,11 @@ package wshandler
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
-	"encoding/json"
 
 	"stack-web-app/frontend/db"
 
@@ -155,8 +156,28 @@ func (c *Client) writePump() {
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
-				ContextLogger.Debug("Hub has closed this channel.")
+				ContextLogger.Debug("Hub has closed this channel, sending update to users.")
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+
+				// Sending update to all still connected clients// Get current stack back and push to the broadcast message queue
+				db.GetOffStack(c.hub.hubId, c.clientId)
+				stackUsers, err := db.ShowCurrentStack(c.hub.hubId)
+				if err != nil {
+					ContextLogger.WithFields(log.Fields{
+						"dbError": err.Error(),
+					}).Error("Error getting current meeting stack contents.")
+				}
+				messageUsers, err := json.Marshal(stackUsers)
+				if err != nil {
+					ContextLogger.WithFields(log.Fields{
+						"dbError": err.Error(),
+					}).Error("Error marshalling JSON for response to client.")
+				}
+				message := bytes.TrimSpace(bytes.Replace(messageUsers, newline, space, -1))
+				ContextLogger.WithFields(log.Fields{
+					"message": fmt.Sprintf("%+v", string(message)),
+				}).Debug("Sending message from client to hub broadcast.")
+				c.hub.broadcast <- message
 				return
 			}
 
@@ -180,7 +201,8 @@ func (c *Client) writePump() {
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				ContextLogger.Warning("Error pinging the websocket I think.")
+				ContextLogger.Warning("Error pinging the websocket, assuming client is dead and unregistering.")
+				c.hub.unregister <- c
 				return
 			}
 		}
@@ -211,7 +233,7 @@ func GetWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// This is to enable local testing for myself. Probably stupid
-	_, disableCORS := os.LookupEnv("DISABLECORS")
+	_, disableCORS := os.LookupEnv("DISABLEWEBSOCKETORIGINCHECK")
 	if disableCORS {
 		upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	}

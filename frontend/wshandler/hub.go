@@ -92,9 +92,10 @@ func (h *Hub) run() {
 			}).Debug("Client successfully registered to hub.")
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
-				db.GetOffStack(h.hubId, client.clientId)
-				delete(h.clients, client)
+				// Closing the client connection
 				close(client.send)
+				_ = client.conn.Close()
+				delete(h.clients, client)
 				ContextLogger.WithFields(log.Fields{
 					"client": fmt.Sprintf("%+v", client),
 					"hub": fmt.Sprintf("%+v", h),
