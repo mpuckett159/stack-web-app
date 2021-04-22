@@ -11,10 +11,14 @@ new Vue({
     },
 
     created: function() {
-        var self = this;
         let urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('meeting_id')) {
             this.tableId = urlParams.get('meeting_id');
+        };
+        if (window.location.protocol == "http:"){
+            this.wsProtocol = "ws:"
+        } else {
+            this.wsProtocol = "wss:"
         };
     },
 
@@ -63,7 +67,7 @@ new Vue({
 
             // Join an on-going meeting by ID and update session values
             this.meetingUrl = window.location.host + '/?meeting_id=' + this.tableId;
-            this.ws = new WebSocket('wss://' + window.location.host + '/ws?meeting_id=' + this.tableId);
+            this.ws = new WebSocket(this.wsProtocol + '//' + window.location.host + '/ws?meeting_id=' + this.tableId);
             this.joined = true;
 
             // Set up event listeners to handle incoming/outgoing messages and open/close actions
@@ -85,13 +89,13 @@ new Vue({
                 method: "POST",
                 headers: { "Accept": "application/json" }
             };
-            await fetch("https://" + window.location.host + "/ws", requestOptions)
+            await fetch(window.location.protocol + "//" + window.location.host + "/ws", requestOptions)
               .then(response => response.json())
               .then(data => self.tableId = data.meetingId);
 
             // Set up new WebSocket to be used with the required meeting ID and update session values
             this.meetingUrl = window.location.host + '/?meeting_id=' + this.tableId;
-            this.ws = new WebSocket('wss://' + window.location.host + '/ws?meeting_id=' + this.tableId);
+            this.ws = new WebSocket(this.wsProtocol + '//' + window.location.host + '/ws?meeting_id=' + this.tableId);
             this.joined = true;
 
             // Set up event listeners to handle incoming/outgoing messages and open/close actions
