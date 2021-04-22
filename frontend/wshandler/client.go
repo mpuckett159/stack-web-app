@@ -14,9 +14,9 @@ import (
 
 	"stack-web-app/frontend/db"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -59,7 +59,7 @@ type Client struct {
 
 // The websocket information struct for the a new meeting creation POST method
 type WsReturn struct {
-	MeetingId	string	`json:"meetingId"`
+	MeetingId string `json:"meetingId"`
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -70,10 +70,10 @@ type WsReturn struct {
 func (c *Client) readPump() {
 	// Update context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
-		"module": "client",
+		"module":   "client",
 		"function": "readPump",
-		"client": fmt.Sprintf("%+v", c),
-		"hub": fmt.Sprintf("%+v", c.hub),
+		"client":   fmt.Sprintf("%+v", c),
+		"hub":      fmt.Sprintf("%+v", c.hub),
 	})
 
 	defer func() {
@@ -81,14 +81,23 @@ func (c *Client) readPump() {
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
-	c.conn.SetReadDeadline(time.Now().Add(pongWait))
-	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	err := c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	if err != nil {
+		ContextLogger.Error("Error setting client connection read deadline")
+	}
+	c.conn.SetPongHandler(func(string) error {
+		err := c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		if err != nil {
+			ContextLogger.Error("Error setting client connection read deadline")
+		}
+		return nil
+	})
 	for {
 		// Read next JSON message for user updates
 		type userMessage struct {
-			TableId	string
-			Action	string
-			Name	string
+			TableId string
+			Action  string
+			Name    string
 		}
 		var messageJson userMessage
 		err := c.conn.ReadJSON(&messageJson)
@@ -102,10 +111,16 @@ func (c *Client) readPump() {
 		}
 
 		// Put user on/off stack based on action in request
-		if(messageJson.Action == "on") {
-			db.GetOnStack(messageJson.TableId, c.clientId, messageJson.Name)
-		} else if (messageJson.Action == "off") {
-			db.GetOffStack(messageJson.TableId, c.clientId)
+		if messageJson.Action == "on" {
+			err := db.GetOnStack(messageJson.TableId, c.clientId, messageJson.Name)
+			if err != nil {
+				ContextLogger.Error("Error getting user on stack")
+			}
+		} else if messageJson.Action == "off" {
+			err := db.GetOffStack(messageJson.TableId, c.clientId)
+			if err != nil {
+				ContextLogger.Error("Error getting user on stack")
+			}
 		}
 
 		// Get current stack back and push to the broadcast message queue
@@ -137,10 +152,10 @@ func (c *Client) readPump() {
 func (c *Client) writePump() {
 	// Update context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
-		"module": "client",
+		"module":   "client",
 		"function": "writePump",
-		"client": fmt.Sprintf("%+v", c),
-		"hub": fmt.Sprintf("%+v", c.hub),
+		"client":   fmt.Sprintf("%+v", c),
+		"hub":      fmt.Sprintf("%+v", c.hub),
 	})
 
 	// Set ticker
@@ -153,14 +168,23 @@ func (c *Client) writePump() {
 		select {
 		case message, ok := <-c.send:
 			ContextLogger.Debug("Sending message to client?")
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			err := c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err != nil {
+				ContextLogger.Error("Error setting write deadline for client.")
+			}
 			if !ok {
 				// The hub closed the channel.
 				ContextLogger.Debug("Hub has closed this channel, sending update to users.")
-				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				err := c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				if err != nil {
+					ContextLogger.Error("Error writing closing message to client.")
+				}
 
 				// Sending update to all still connected clients// Get current stack back and push to the broadcast message queue
-				db.GetOffStack(c.hub.hubId, c.clientId)
+				err = db.GetOffStack(c.hub.hubId, c.clientId)
+				if err != nil {
+					ContextLogger.Error("Error getting user off stack from client closure.")
+				}
 				stackUsers, err := db.ShowCurrentStack(c.hub.hubId)
 				if err != nil {
 					ContextLogger.WithFields(log.Fields{
@@ -185,13 +209,22 @@ func (c *Client) writePump() {
 			if err != nil {
 				return
 			}
-			w.Write(message)
+			_, err = w.Write(message)
+			if err != nil {
+				ContextLogger.Error("Error writing back message to rest of clients after client connection closed.")
+			}
 
 			// Add queued chat messages to the current websocket message.
 			n := len(c.send)
 			for i := 0; i < n; i++ {
-				w.Write(newline)
-				w.Write(<-c.send)
+				_, err = w.Write(newline)
+				if err != nil {
+					ContextLogger.Error("Error writing back newline back to rest of clients after client connection closed.")
+				}
+				_, err = w.Write(<-c.send)
+				if err != nil {
+					ContextLogger.Error("Error sending message to rest of clients after client connection closed.")
+				}
 			}
 
 			if err := w.Close(); err != nil {
@@ -199,7 +232,10 @@ func (c *Client) writePump() {
 				return
 			}
 		case <-ticker.C:
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			err := c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err != nil {
+				ContextLogger.Error("Error setting write deadline for client connection.")
+			}
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				ContextLogger.Warning("Error pinging the websocket, assuming client is dead and unregistering.")
 				c.hub.unregister <- c
@@ -214,10 +250,10 @@ func (c *Client) writePump() {
 func GetWS(w http.ResponseWriter, r *http.Request) {
 	// Update context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
-		"module": "client",
+		"module":   "client",
 		"function": "GetWS",
 	})
-	
+
 	// Getting hub ID from http request query params
 	hubId := r.URL.Query().Get("meeting_id")
 	ContextLogger = ContextLogger.WithField("hubId", hubId)
@@ -275,7 +311,7 @@ func GetWS(w http.ResponseWriter, r *http.Request) {
 func PostWS(w http.ResponseWriter, r *http.Request) {
 	// Update context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
-		"module": "client",
+		"module":   "client",
 		"function": "PostWS",
 	})
 

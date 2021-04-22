@@ -8,9 +8,9 @@ import (
 	"fmt"
 
 	"stack-web-app/frontend/db"
-	
-	log "github.com/sirupsen/logrus"
+
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 )
 
 // Hub maintains the set of active clients and broadcasts messages to the
@@ -39,7 +39,7 @@ var HubPool = map[string]*Hub{}
 func newHub() *Hub {
 	// Update context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
-		"module": "hub",
+		"module":   "hub",
 		"function": "newHub",
 	})
 
@@ -50,23 +50,26 @@ func newHub() *Hub {
 	ContextLogger.WithFields(log.Fields{
 		"hubId": hubId,
 	}).Debug("Creating meeting hub and database table.")
-	db.CreateTable(hubId)
+	err := db.CreateTable(hubId)
+	if err != nil {
+		ContextLogger.Error("Error creating new meeting table.")
+	}
 	hub := Hub{
 		broadcast:  make(chan []byte),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
-		hubId:		hubId,
+		hubId:      hubId,
 	}
 	ContextLogger.WithFields(log.Fields{
 		"hubId": hubId,
-		"hub": fmt.Sprintf("%+v", hub),
+		"hub":   fmt.Sprintf("%+v", hub),
 	}).Debug("Meeting hub and database table successfully created.")
 
 	// Add hub ID to hub pointer map for quick meeting hub lookup
 	HubPool[hubId] = &hub
 	ContextLogger.WithFields(log.Fields{
-		"hub": fmt.Sprintf("%+v", hub),
+		"hub":        fmt.Sprintf("%+v", hub),
 		"hubPoolMap": HubPool,
 	}).Debug("Meeting hub successfully added to HubPool.")
 
@@ -78,7 +81,7 @@ func newHub() *Hub {
 func (h *Hub) run() {
 	// Update context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
-		"module": "hub",
+		"module":   "hub",
 		"function": "run",
 	})
 
@@ -88,7 +91,7 @@ func (h *Hub) run() {
 			h.clients[client] = true
 			ContextLogger.WithFields(log.Fields{
 				"client": fmt.Sprintf("%+v", client),
-				"hub": fmt.Sprintf("%+v", h),
+				"hub":    fmt.Sprintf("%+v", h),
 			}).Debug("Client successfully registered to hub.")
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
@@ -98,28 +101,28 @@ func (h *Hub) run() {
 				delete(h.clients, client)
 				ContextLogger.WithFields(log.Fields{
 					"client": fmt.Sprintf("%+v", client),
-					"hub": fmt.Sprintf("%+v", h),
+					"hub":    fmt.Sprintf("%+v", h),
 				}).Debug("Client successfully unregistered from hub, updating stack to rest of group.")
 			}
 		case message := <-h.broadcast:
 			ContextLogger.WithFields(log.Fields{
 				"message": fmt.Sprintf("%+v", string(message)),
-				"hub": fmt.Sprintf("%+v", h),
+				"hub":     fmt.Sprintf("%+v", h),
 			}).Debug("Message being sent to all clients in hub.")
 			for client := range h.clients {
 				select {
 				case client.send <- message:
 					ContextLogger.WithFields(log.Fields{
-						"client": fmt.Sprintf("%+v", client),
-						"hub": fmt.Sprintf("%+v", h),
+						"client":  fmt.Sprintf("%+v", client),
+						"hub":     fmt.Sprintf("%+v", h),
 						"message": fmt.Sprintf("%+v", string(message)),
 					}).Debug("Broadcast message being sent to client.")
 				default:
 					close(client.send)
 					delete(h.clients, client)
 					ContextLogger.WithFields(log.Fields{
-						"client": fmt.Sprintf("%+v", client),
-						"hub": fmt.Sprintf("%+v", h),
+						"client":  fmt.Sprintf("%+v", client),
+						"hub":     fmt.Sprintf("%+v", h),
 						"message": fmt.Sprintf("%+v", string(message)),
 					}).Debug("Unable to send message to client, successfully unregistered client from hub.")
 				}
