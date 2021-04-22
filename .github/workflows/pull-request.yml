@@ -9,7 +9,7 @@ jobs:
   fmt:
     name: fmt
     runs-on: ubuntu-latest
-    setps:
+    steps:
       - uses: Jerome1337/gofmt-action@v1.0.4
         with:
           gofmt-path: './frontend'
