@@ -144,7 +144,7 @@ func GetOnStack(tableId string, speakerId string, name string) (err error) {
 		log.WithFields(log.Fields{
 			"sqlQuery": addUserToStackTableSQL,
 			"error": err.Error(),
-		}).Error("Error preparing statement to delete meeting table")
+		}).Error("Error preparing statement to get on stack.")
 		return err
 	}
 	defer statement.Close()
@@ -155,7 +155,7 @@ func GetOnStack(tableId string, speakerId string, name string) (err error) {
 		log.WithFields(log.Fields{
 			"sqlQuery": addUserToStackTableSQL,
 			"error": err.Error(),
-		}).Error("Error executing statement to delete meeting table")
+		}).Error("Error executing statement to get on stack.")
 		return err
 	}
 
@@ -186,7 +186,7 @@ func GetOffStack(tableId string, speakerId string) (err error) {
 		log.WithFields(log.Fields{
 			"sqlQuery": removeUserFromStackTableSQL,
 			"error": err.Error(),
-		}).Error("Error preparing statement to delete meeting table")
+		}).Error("Error preparing statement to get off stack")
 		return err
 	}
 	defer statement.Close()
@@ -197,7 +197,7 @@ func GetOffStack(tableId string, speakerId string) (err error) {
 		log.WithFields(log.Fields{
 			"sqlQuery": removeUserFromStackTableSQL,
 			"error": err.Error(),
-		}).Error("Error executing statement to delete meeting table")
+		}).Error("Error executing statement to get off stack")
 	}
 
 	// Return nothing because there are no failures
