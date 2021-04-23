@@ -175,10 +175,9 @@ func (c *Client) writePump() {
 			if !ok {
 				// The hub closed the channel.
 				ContextLogger.Debug("Hub has closed this channel, sending update to users.")
-				err := c.conn.WriteMessage(websocket.CloseMessage, []byte{})
-				if err != nil {
-					ContextLogger.Error("Error writing closing message to client.")
-				}
+
+				// We don't care if the write message fails, so to appease the golangci-lint gods we just log err out to nothing
+				_ = c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 
 				// Sending update to all still connected clients// Get current stack back and push to the broadcast message queue
 				err = db.GetOffStack(c.hub.hubId, c.clientId)
