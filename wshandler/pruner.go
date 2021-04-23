@@ -3,7 +3,7 @@ package wshandler
 import (
 	"time"
 
-	"stack-web-app/frontend/db"
+	"stack-web-app/db"
 
 	log "github.com/sirupsen/logrus"
 )

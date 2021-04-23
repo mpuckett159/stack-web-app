@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"os"
 
-	"stack-web-app/frontend/db"
-	"stack-web-app/frontend/wshandler"
+	"stack-web-app/db"
+	"stack-web-app/wshandler"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
