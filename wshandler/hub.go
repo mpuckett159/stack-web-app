@@ -7,7 +7,7 @@ package wshandler
 import (
 	"fmt"
 
-	"stack-web-app/frontend/db"
+	"stack-web-app/db"
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"

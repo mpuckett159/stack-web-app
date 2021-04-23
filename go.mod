@@ -1,6 +1,6 @@
-module stack-web-app/frontend
+module stack-web-app
 
-go 1.16
+go 1.15
 
 require (
 	github.com/google/uuid v1.2.0
