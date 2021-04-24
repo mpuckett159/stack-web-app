@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 
-	"stack-web-app/db"
 	"stack-web-app/wshandler"
 
 	"github.com/gorilla/handlers"
@@ -33,8 +32,9 @@ func main() {
 
 	// Set up gorilla mux router handling
 	flag.Parse()
-	db.Start()
 	go wshandler.PruneEmptyMeetings()
+
+	// Set up router functions
 	router := mux.NewRouter()
 	router.HandleFunc("/", wshandler.GetWS).Methods("GET")
 	router.HandleFunc("/", wshandler.PostWS).Methods("POST")

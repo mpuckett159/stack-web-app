@@ -3,8 +3,6 @@ package wshandler
 import (
 	"time"
 
-	"stack-web-app/db"
-
 	log "github.com/sirupsen/logrus"
 )
 
@@ -38,10 +36,6 @@ func PruneEmptyMeetings() {
 				ContextLogger.Debug("Empty meeting found, attempting to prune.")
 				delete(HubPool, hubId)
 				ContextLogger.Debug("Successfully deleted meeting hub: " + hubId)
-				err := db.DeleteTable(hubId)
-				if err != nil {
-					ContextLogger.Warning("Error deleting meeting table: " + err.Error())
-				}
 			}
 		}
 	}

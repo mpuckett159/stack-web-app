@@ -12,8 +12,6 @@ import (
 	"os"
 	"time"
 
-	"stack-web-app/db"
-
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
@@ -62,6 +60,17 @@ type WsReturn struct {
 	MeetingId string `json:"meetingId"`
 }
 
+// Client message formats
+//
+// MeetingId - links clients to meeting hub struct
+// Action - the action that will be performed. This will be parsed out on the client side
+// ClientId - the source client ID for the action, which will inform some actions on the client side app
+type UserMessage struct {
+	MeetingId string `json:"meetingId"`
+	Action    string `json:"action"`
+	ClientId  string `json:"clientId"`
+}
+
 // readPump pumps messages from the websocket connection to the hub.
 //
 // The application runs readPump in a per-connection goroutine. The application
@@ -94,12 +103,7 @@ func (c *Client) readPump() {
 	})
 	for {
 		// Read next JSON message for user updates
-		type userMessage struct {
-			TableId string
-			Action  string
-			Name    string
-		}
-		var messageJson userMessage
+		var messageJson UserMessage
 		err := c.conn.ReadJSON(&messageJson)
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -110,32 +114,16 @@ func (c *Client) readPump() {
 			break
 		}
 
-		// Put user on/off stack based on action in request
-		if messageJson.Action == "on" {
-			err := db.GetOnStack(messageJson.TableId, c.clientId, messageJson.Name)
-			if err != nil {
-				ContextLogger.Error("Error getting user on stack")
-			}
-		} else if messageJson.Action == "off" {
-			err := db.GetOffStack(messageJson.TableId, c.clientId)
-			if err != nil {
-				ContextLogger.Error("Error getting user on stack")
-			}
-		}
-
-		// Get current stack back and push to the broadcast message queue
-		stackUsers, err := db.ShowCurrentStack(messageJson.TableId)
-		if err != nil {
-			ContextLogger.WithFields(log.Fields{
-				"dbError": err.Error(),
-			}).Error("Error getting current meeting stack contents.")
-		}
-		messageUsers, err := json.Marshal(stackUsers)
+		// Passing userMessage on to rest of clients for client side handling
+		messageUsers, err := json.Marshal(messageJson)
 		if err != nil {
 			ContextLogger.WithFields(log.Fields{
 				"dbError": err.Error(),
 			}).Error("Error marshalling JSON for response to client.")
 		}
+
+		// Verify that mod actions are coming from the actual mod
+		// TODO check mod messages are coming from actual mods
 		message := bytes.TrimSpace(bytes.Replace(messageUsers, newline, space, -1))
 		ContextLogger.WithFields(log.Fields{
 			"message": fmt.Sprintf("%+v", string(message)),
@@ -167,7 +155,6 @@ func (c *Client) writePump() {
 	for {
 		select {
 		case message, ok := <-c.send:
-			ContextLogger.Debug("Sending message to client?")
 			err := c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err != nil {
 				ContextLogger.Error("Error setting write deadline for client.")
@@ -179,18 +166,13 @@ func (c *Client) writePump() {
 				// We don't care if the write message fails, so to appease the golangci-lint gods we just log err out to nothing
 				_ = c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 
-				// Sending update to all still connected clients// Get current stack back and push to the broadcast message queue
-				err = db.GetOffStack(c.hub.hubId, c.clientId)
-				if err != nil {
-					ContextLogger.Error("Error getting user off stack from client closure.")
+				// Sends a message informing the other clients that this client is leaving and can be removed from their data.
+				meetingUserLeave := UserMessage{
+					c.hub.hubId,
+					"leave",
+					c.clientId,
 				}
-				stackUsers, err := db.ShowCurrentStack(c.hub.hubId)
-				if err != nil {
-					ContextLogger.WithFields(log.Fields{
-						"dbError": err.Error(),
-					}).Error("Error getting current meeting stack contents.")
-				}
-				messageUsers, err := json.Marshal(stackUsers)
+				messageUsers, err := json.Marshal(meetingUserLeave)
 				if err != nil {
 					ContextLogger.WithFields(log.Fields{
 						"dbError": err.Error(),
@@ -273,6 +255,7 @@ func GetWS(w http.ResponseWriter, r *http.Request) {
 		upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	}
 
+	// Upgrade the client connection to a WebSocket and register the new client in the hub
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
@@ -285,13 +268,13 @@ func GetWS(w http.ResponseWriter, r *http.Request) {
 	client.hub.register <- client
 	ContextLogger.Debug("New client successfully registered with hub.")
 
-	// Push current stack out to clients. Should update eventually to only push out to new users somehow
-	// Get current stack back and push to the broadcast message queue
-	stackUsers, err := db.ShowCurrentStack(hubId)
-	if err != nil {
-		ContextLogger.WithField("error", err.Error()).Error("Error fetching current speaker stack.")
+	// Send new user update to clients
+	newUserMessage := UserMessage{
+		hub.hubId,
+		"newuser",
+		client.clientId,
 	}
-	messageUsers, err := json.Marshal(stackUsers)
+	messageUsers, err := json.Marshal(newUserMessage)
 	if err != nil {
 		ContextLogger.WithField("error", err.Error()).Error("Error marshaling current stack for client response message.")
 	}

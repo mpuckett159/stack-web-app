@@ -7,8 +7,6 @@ package wshandler
 import (
 	"fmt"
 
-	"stack-web-app/db"
-
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
@@ -30,6 +28,9 @@ type Hub struct {
 
 	// Hub ID so users can join asynchronously
 	hubId string
+
+	// Current mod of the meeting
+	mod *Client
 }
 
 // Declare global slice of hub ID to hub pointer map to track existing meeting hubs
@@ -50,16 +51,13 @@ func newHub() *Hub {
 	ContextLogger.WithFields(log.Fields{
 		"hubId": hubId,
 	}).Debug("Creating meeting hub and database table.")
-	err := db.CreateTable(hubId)
-	if err != nil {
-		ContextLogger.Error("Error creating new meeting table.")
-	}
 	hub := Hub{
 		broadcast:  make(chan []byte),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
 		hubId:      hubId,
+		mod: nil,
 	}
 	ContextLogger.WithFields(log.Fields{
 		"hubId": hubId,
@@ -89,12 +87,39 @@ func (h *Hub) run() {
 		select {
 		case client := <-h.register:
 			h.clients[client] = true
+
+			// Set new client to mod if there is no current mod. This should only be run when the meeting
+			// is first stood up, any mod client unregisters should result in a new mod being appointed.
+			if h.mod == nil {
+				h.mod = client
+			}
 			ContextLogger.WithFields(log.Fields{
 				"client": fmt.Sprintf("%+v", client),
 				"hub":    fmt.Sprintf("%+v", h),
 			}).Debug("Client successfully registered to hub.")
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
+				// Appointing another client as mod if this client is the mod
+				if h.mod == client {
+					ContextLogger.WithFields(log.Fields{
+						"client": fmt.Sprintf("%+v", client),
+						"hub":    fmt.Sprintf("%+v", h),
+					}).Debug("Client unregistering from hub was a mod, finding new mod.")
+					var newMod *Client
+					for currentClient := range h.clients {
+						if currentClient != h.mod{
+							newMod = currentClient
+							break
+						}
+					}
+					ContextLogger.WithFields(log.Fields{
+						"client": fmt.Sprintf("%+v", client),
+						"hub":    fmt.Sprintf("%+v", h),
+						"newMod": fmt.Sprintf("+%v", newMod),
+					}).Debug("New mod found!")
+					h.mod = newMod
+				}
+
 				// Closing the client connection
 				close(client.send)
 				_ = client.conn.Close()
