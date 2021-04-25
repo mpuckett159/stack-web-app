@@ -71,6 +71,28 @@ type UserMessage struct {
 	ClientId  string `json:"clientId"`
 }
 
+// Meeting creation body format
+type MeetingCreationMessage struct {
+	ModActions []string `json:"actions"`
+}
+
+// Abstrcts marshaling and sending a JSON message to a meeting hub
+func (c *Client) broadcastMessage(messageJson UserMessage) {
+	messageUsers, err := json.Marshal(messageJson)
+	if err != nil {
+		ContextLogger.WithFields(log.Fields{
+			"dbError": err.Error(),
+		}).Error("Error marshalling JSON for response to client.")
+	}
+
+	// Verify that mod actions are coming from the actual mod
+	message := bytes.TrimSpace(bytes.Replace(messageUsers, newline, space, -1))
+	ContextLogger.WithFields(log.Fields{
+		"message": fmt.Sprintf("%+v", string(message)),
+	}).Debug("Sending message from client to hub broadcast.")
+	c.hub.broadcast <- message
+}
+
 // readPump pumps messages from the websocket connection to the hub.
 //
 // The application runs readPump in a per-connection goroutine. The application
@@ -115,20 +137,15 @@ func (c *Client) readPump() {
 		}
 
 		// Passing userMessage on to rest of clients for client side handling
-		messageUsers, err := json.Marshal(messageJson)
-		if err != nil {
-			ContextLogger.WithFields(log.Fields{
-				"dbError": err.Error(),
-			}).Error("Error marshalling JSON for response to client.")
+		// Checks for client actions vs mod action map and logs error if non mod user
+		// tries to perform a mod action, but ignores the attempt.
+		if _, ok := c.hub.modActions[messageJson.Action]; (ok && c == c.hub.mod) {
+			c.broadcastMessage(messageJson)
+		} else if _, ok := c.hub.modActions[messageJson.Action]; (!ok){
+			c.broadcastMessage(messageJson)
+		} else {
+			ContextLogger.Error("A client who was not a mod tried to send mod action message.")
 		}
-
-		// Verify that mod actions are coming from the actual mod
-		// TODO check mod messages are coming from actual mods
-		message := bytes.TrimSpace(bytes.Replace(messageUsers, newline, space, -1))
-		ContextLogger.WithFields(log.Fields{
-			"message": fmt.Sprintf("%+v", string(message)),
-		}).Debug("Sending message from client to hub broadcast.")
-		c.hub.broadcast <- message
 	}
 }
 
@@ -172,17 +189,7 @@ func (c *Client) writePump() {
 					"leave",
 					c.clientId,
 				}
-				messageUsers, err := json.Marshal(meetingUserLeave)
-				if err != nil {
-					ContextLogger.WithFields(log.Fields{
-						"dbError": err.Error(),
-					}).Error("Error marshalling JSON for response to client.")
-				}
-				message := bytes.TrimSpace(bytes.Replace(messageUsers, newline, space, -1))
-				ContextLogger.WithFields(log.Fields{
-					"message": fmt.Sprintf("%+v", string(message)),
-				}).Debug("Sending message from client to hub broadcast.")
-				c.hub.broadcast <- message
+				c.broadcastMessage(meetingUserLeave)
 				return
 			}
 
@@ -297,8 +304,15 @@ func PostWS(w http.ResponseWriter, r *http.Request) {
 		"function": "PostWS",
 	})
 
+	// Parse the incoming message data to create a new meeting room
+	var inMessage MeetingCreationMessage
+	err := json.NewDecoder(r.Body).Decode(&inMessage)
+	if err != nil {
+		ContextLogger.Debug("There was an error parsing the incoming message data.")
+	}
+
 	// Create new hub for meeting and return to be used for client creation
-	hub := newHub()
+	hub := newHub(inMessage.ModActions)
 	ContextLogger = ContextLogger.WithField("hub", fmt.Sprintf("%+v", hub))
 	ContextLogger.Debug("Starting new hub goroutine.")
 	go hub.run()

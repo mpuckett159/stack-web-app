@@ -31,13 +31,18 @@ type Hub struct {
 
 	// Current mod of the meeting
 	mod *Client
+
+	// List of mod actions gated behind a check to see if a client is a mod or not
+	// Because Go has no simple "contains" method for slices we have to use a map
+	// of string to an empty struct because... reasons.
+	modActions map[string]struct{}
 }
 
 // Declare global slice of hub ID to hub pointer map to track existing meeting hubs
 var HubPool = map[string]*Hub{}
 
 // newHub crates a new hub and registers it with the HubPool global hub table.
-func newHub() *Hub {
+func newHub(modActions []string) *Hub {
 	// Update context logger
 	ContextLogger = ContextLogger.WithFields(log.Fields{
 		"module":   "hub",
@@ -50,19 +55,32 @@ func newHub() *Hub {
 	// Create new DB table to store users in
 	ContextLogger.WithFields(log.Fields{
 		"hubId": hubId,
-	}).Debug("Creating meeting hub and database table.")
+	}).Debug("Creating meeting hub.")
+
+	// Build mod actions map from slice of strings
+	modActionsMap := make(map[string]struct{}, len(modActions))
+    for _, s := range modActions {
+        modActionsMap[s] = struct{}{}
+    }
+	ContextLogger.WithFields(log.Fields{
+		"hubId": hubId,
+		"modActions": modActionsMap,
+	}).Debug("Creating meeting hub.")
+
+	// Create hub
 	hub := Hub{
 		broadcast:  make(chan []byte),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
 		hubId:      hubId,
-		mod: nil,
+		mod:        nil,
+		modActions: modActionsMap,
 	}
 	ContextLogger.WithFields(log.Fields{
 		"hubId": hubId,
 		"hub":   fmt.Sprintf("%+v", hub),
-	}).Debug("Meeting hub and database table successfully created.")
+	}).Debug("Meeting hub successfully created.")
 
 	// Add hub ID to hub pointer map for quick meeting hub lookup
 	HubPool[hubId] = &hub
@@ -107,7 +125,7 @@ func (h *Hub) run() {
 					}).Debug("Client unregistering from hub was a mod, finding new mod.")
 					var newMod *Client
 					for currentClient := range h.clients {
-						if currentClient != h.mod{
+						if currentClient != h.mod {
 							newMod = currentClient
 							break
 						}
