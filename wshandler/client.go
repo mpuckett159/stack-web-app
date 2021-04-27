@@ -73,7 +73,7 @@ type UserMessage struct {
 
 // Meeting creation body format
 type MeetingCreationMessage struct {
-	ModActions []string `json:"actions"`
+	ModActions []string `json:"modActions"`
 }
 
 // Abstrcts marshaling and sending a JSON message to a meeting hub
@@ -139,9 +139,9 @@ func (c *Client) readPump() {
 		// Passing userMessage on to rest of clients for client side handling
 		// Checks for client actions vs mod action map and logs error if non mod user
 		// tries to perform a mod action, but ignores the attempt.
-		if _, ok := c.hub.modActions[messageJson.Action]; (ok && c == c.hub.mod) {
+		if _, ok := c.hub.modActions[messageJson.Action]; ok && c == c.hub.mod {
 			c.broadcastMessage(messageJson)
-		} else if _, ok := c.hub.modActions[messageJson.Action]; (!ok){
+		} else if _, ok := c.hub.modActions[messageJson.Action]; !ok {
 			c.broadcastMessage(messageJson)
 		} else {
 			ContextLogger.Error("A client who was not a mod tried to send mod action message.")
@@ -308,7 +308,8 @@ func PostWS(w http.ResponseWriter, r *http.Request) {
 	var inMessage MeetingCreationMessage
 	err := json.NewDecoder(r.Body).Decode(&inMessage)
 	if err != nil {
-		ContextLogger.Debug("There was an error parsing the incoming message data.")
+		ContextLogger.WithField("request body", r.Body).Debug("Request body does not contain JSON.")
+		ContextLogger.WithField("error", err.Error()).Error("There was an error parsing the incoming message data.")
 	}
 
 	// Create new hub for meeting and return to be used for client creation
@@ -319,15 +320,9 @@ func PostWS(w http.ResponseWriter, r *http.Request) {
 
 	// Return new meeting ID to client
 	returnBlob := WsReturn{hub.hubId}
-	rJson, err := json.Marshal(returnBlob)
-	if err != nil {
-		ContextLogger.Error("Error marshalling JSON response.")
-		return
-	}
 	ContextLogger.WithField("responseJson", fmt.Sprintf("%+v", returnBlob)).Debug("Sending response to requestor.")
-	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(rJson)
+	err = json.NewEncoder(w).Encode(returnBlob)
 	if err != nil {
 		ContextLogger.Error("Error writing response back to web session after user requested new meeting.")
 	}
