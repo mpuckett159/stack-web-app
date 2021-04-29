@@ -5,7 +5,7 @@ ENV GO111MODULE=auto
 
 WORKDIR /app
 COPY . /app
-RUN go build -o /app/main -ldflags="-extldflags=-static" -tags sqlite_omit_load_extension
+RUN go build -o /app/main
 
 # Copy out app from build image and set execution
 FROM alpine:latest
