@@ -59,11 +59,11 @@ func newHub(modActions []string) *Hub {
 
 	// Build mod actions map from slice of strings
 	modActionsMap := make(map[string]struct{}, len(modActions))
-    for _, s := range modActions {
-        modActionsMap[s] = struct{}{}
-    }
+	for _, s := range modActions {
+		modActionsMap[s] = struct{}{}
+	}
 	ContextLogger.WithFields(log.Fields{
-		"hubId": hubId,
+		"hubId":      hubId,
 		"modActions": modActionsMap,
 	}).Debug("Creating meeting hub.")
 
