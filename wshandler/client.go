@@ -66,9 +66,10 @@ type WsReturn struct {
 // Action - the action that will be performed. This will be parsed out on the client side
 // ClientId - the source client ID for the action, which will inform some actions on the client side app
 type UserMessage struct {
-	MeetingId string `json:"meetingId"`
-	Action    string `json:"action"`
-	ClientId  string `json:"clientId"`
+	MeetingId   string      `json:"meetingId"`
+	Action      string      `json:"action"`
+	ClientId    string      `json:"clientId"`
+	MessageData interface{} `json:"msgData"`
 }
 
 // Meeting creation body format
@@ -116,6 +117,7 @@ func (c *Client) readPump() {
 			c.hub.hubId,
 			"removeUser",
 			c.clientId,
+			"",
 		}
 		messageUsers, err := json.Marshal(removeUserMessage)
 		if err != nil {
@@ -188,6 +190,7 @@ func (c *Client) writePump() {
 			c.hub.hubId,
 			"removeUser",
 			c.clientId,
+			"",
 		}
 		messageUsers, err := json.Marshal(removeUserMessage)
 		if err != nil {
@@ -280,13 +283,14 @@ func GetWS(w http.ResponseWriter, r *http.Request) {
 		hub.hubId,
 		"registerSelfUser",
 		client.clientId,
+		"",
 	}
 	messageUsers, err := json.Marshal(newUserMessage)
 	if err != nil {
 		ContextLogger.WithField("error", err.Error()).Error("Error marshaling current stack for client response message.")
 	}
 	message := bytes.TrimSpace(bytes.Replace(messageUsers, newline, space, -1))
-	client.hub.broadcast <- message
+	client.send <- message
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
