@@ -111,6 +111,7 @@ func (h *Hub) run() {
 			if h.mod == nil {
 				h.mod = client
 			}
+
 			ContextLogger.WithFields(log.Fields{
 				"client": fmt.Sprintf("%+v", client),
 				"hub":    fmt.Sprintf("%+v", h),

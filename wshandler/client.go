@@ -76,7 +76,7 @@ type MeetingCreationMessage struct {
 	ModActions []string `json:"modActions"`
 }
 
-// Abstrcts marshaling and sending a JSON message to a meeting hub
+// Abstracts marshaling and sending a JSON message to a meeting hub
 func (c *Client) broadcastMessage(messageJson UserMessage) {
 	messageUsers, err := json.Marshal(messageJson)
 	if err != nil {
@@ -110,6 +110,19 @@ func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
 		c.conn.Close()
+
+		// Send update to clients this connection is closed and to remove the client
+		removeUserMessage := UserMessage{
+			c.hub.hubId,
+			"removeUser",
+			c.clientId,
+		}
+		messageUsers, err := json.Marshal(removeUserMessage)
+		if err != nil {
+			ContextLogger.WithField("error", err.Error()).Error("Error marshaling current stack for client response message.")
+		}
+		message := bytes.TrimSpace(bytes.Replace(messageUsers, newline, space, -1))
+		c.hub.broadcast <- message
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	err := c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -167,7 +180,21 @@ func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
+
 		c.conn.Close()
+
+		// Send update to clients this connection is closed and to remove the client
+		removeUserMessage := UserMessage{
+			c.hub.hubId,
+			"removeUser",
+			c.clientId,
+		}
+		messageUsers, err := json.Marshal(removeUserMessage)
+		if err != nil {
+			ContextLogger.WithField("error", err.Error()).Error("Error marshaling current stack for client response message.")
+		}
+		message := bytes.TrimSpace(bytes.Replace(messageUsers, newline, space, -1))
+		c.hub.broadcast <- message
 	}()
 	for {
 		select {
@@ -177,19 +204,6 @@ func (c *Client) writePump() {
 				ContextLogger.Error("Error setting write deadline for client.")
 			}
 			if !ok {
-				// The hub closed the channel.
-				ContextLogger.Debug("Hub has closed this channel, sending update to users.")
-
-				// We don't care if the write message fails, so to appease the golangci-lint gods we just log err out to nothing
-				_ = c.conn.WriteMessage(websocket.CloseMessage, []byte{})
-
-				// Sends a message informing the other clients that this client is leaving and can be removed from their data.
-				meetingUserLeave := UserMessage{
-					c.hub.hubId,
-					"leave",
-					c.clientId,
-				}
-				c.broadcastMessage(meetingUserLeave)
 				return
 			}
 
@@ -200,19 +214,6 @@ func (c *Client) writePump() {
 			_, err = w.Write(message)
 			if err != nil {
 				ContextLogger.Error("Error writing back message to rest of clients after client connection closed.")
-			}
-
-			// Add queued chat messages to the current websocket message.
-			n := len(c.send)
-			for i := 0; i < n; i++ {
-				_, err = w.Write(newline)
-				if err != nil {
-					ContextLogger.Error("Error writing back newline back to rest of clients after client connection closed.")
-				}
-				_, err = w.Write(<-c.send)
-				if err != nil {
-					ContextLogger.Error("Error sending message to rest of clients after client connection closed.")
-				}
 			}
 
 			if err := w.Close(); err != nil {
@@ -275,10 +276,9 @@ func GetWS(w http.ResponseWriter, r *http.Request) {
 	client.hub.register <- client
 	ContextLogger.Debug("New client successfully registered with hub.")
 
-	// Send new user update to clients
 	newUserMessage := UserMessage{
 		hub.hubId,
-		"newuser",
+		"registerSelfUser",
 		client.clientId,
 	}
 	messageUsers, err := json.Marshal(newUserMessage)
@@ -287,7 +287,6 @@ func GetWS(w http.ResponseWriter, r *http.Request) {
 	}
 	message := bytes.TrimSpace(bytes.Replace(messageUsers, newline, space, -1))
 	client.hub.broadcast <- message
-	ContextLogger.Debug("Message successfully sent to hub broadcast channel.")
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
